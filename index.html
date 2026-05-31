@@ -38,7 +38,7 @@
     margin-bottom: 18px;
   }
   label { display: block; font-size: 0.85rem; color: var(--muted); margin: 12px 0 4px; }
-  input, textarea {
+  input, textarea, select {
     width: 100%;
     background: var(--card2);
     border: 1px solid var(--line);
@@ -48,6 +48,7 @@
     font-size: 1rem;
     font-family: inherit;
   }
+  select { appearance: none; -webkit-appearance: none; }
   textarea { resize: vertical; min-height: 70px; }
   .row { display: flex; gap: 12px; }
   .row > div { flex: 1; }
@@ -123,10 +124,16 @@
         <input type="number" id="duration" value="60" min="0" max="600" step="15" />
       </div>
     </div>
-    <label for="menu">練習メニュー</label>
-    <input type="text" id="menu" placeholder="例: ストップショット、9ボール ゴースト戦" />
-    <label for="result">結果</label>
-    <input type="text" id="result" placeholder="例: 10球中7球成功 / ゴースト 4勝6敗" />
+    <div class="row">
+      <div>
+        <label for="cat">種別（大項目）</label>
+        <select id="cat"></select>
+      </div>
+      <div>
+        <label for="sub">種別（小項目）</label>
+        <select id="sub"></select>
+      </div>
+    </div>
     <label for="memo">気づき・メモ（任意）</label>
     <textarea id="memo" placeholder="例: 引き玉のフォロースルーが甘かった"></textarea>
     <button class="primary" id="saveBtn">記録する</button>
@@ -153,6 +160,37 @@
     const TABLE = "practice_logs";
 
     const $ = (id) => document.getElementById(id);
+
+    // ---- トレーニング種別（大項目 → 小項目）----
+    const CATEGORIES = {
+      "基礎": ["センターショット", "ストップショット", "フォロー（押し）", "ドロー（引き）", "フリ（カット）", "直進性チェック"],
+      "出し（ポジション）": ["ライン出し", "スピードコントロール", "1クッション出し", "L字パターン"],
+      "実戦": ["9ボール ゴースト戦", "フルラック取り切り", "ボーラード", "14-1"],
+      "守備・特殊": ["セーフティ", "キックショット", "バンクショット", "クラスター処理"],
+      "ブレイク": ["ブレイク練習"],
+      "その他": ["フリー練習", "試合"],
+    };
+
+    // 大項目プルダウンを作る
+    const catSel = $("cat");
+    Object.keys(CATEGORIES).forEach((c) => {
+      const o = document.createElement("option");
+      o.value = c; o.textContent = c;
+      catSel.appendChild(o);
+    });
+
+    // 大項目に応じて小項目を入れ替える
+    function fillSub() {
+      const subSel = $("sub");
+      subSel.innerHTML = "";
+      CATEGORIES[catSel.value].forEach((s) => {
+        const o = document.createElement("option");
+        o.value = s; o.textContent = s;
+        subSel.appendChild(o);
+      });
+    }
+    catSel.onchange = fillSub;
+    fillSub();
 
     // 今日の日付をデフォルトに
     function todayStr() {
@@ -233,8 +271,8 @@
       const row = {
         practice_date: $("date").value || todayStr(),
         duration_min: parseInt($("duration").value || "0", 10),
-        menu: $("menu").value.trim(),
-        result: $("result").value.trim(),
+        menu: $("cat").value + " / " + $("sub").value,
+        result: "",
         memo: $("memo").value.trim(),
       };
       $("saveBtn").disabled = true;
@@ -245,9 +283,7 @@
         alert("保存エラー: " + error.message);
         return;
       }
-      // フォームをリセット（日付・時間は残す）
-      $("menu").value = "";
-      $("result").value = "";
+      // フォームをリセット（日付・時間・種別は残す）
       $("memo").value = "";
       showToast("記録したよ！👏");
       load();
