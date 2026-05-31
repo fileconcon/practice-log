@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>🎱 練習ログ</title>
+<meta name="theme-color" content="#0e1117" />
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='48' fill='%23222'/%3E%3Ccircle cx='50' cy='38' r='15' fill='%23fff'/%3E%3Ctext x='50' y='45' font-size='18' text-anchor='middle' fill='%23222'%3E8%3C/text%3E%3C/svg%3E" />
+<style>
+  :root {
+    --bg: #0e1117;
+    --card: #1a1d26;
+    --card2: #232733;
+    --line: #2b303c;
+    --text: #e6e8eb;
+    --muted: #9aa0aa;
+    --accent: #ff5a5f;
+    --accent2: #2ea043;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Segoe UI", sans-serif;
+    line-height: 1.5;
+    padding: 16px;
+    max-width: 640px;
+    margin: 0 auto;
+  }
+  h1 { font-size: 1.6rem; margin: 8px 0 16px; }
+  h2 { font-size: 1.1rem; margin: 0 0 12px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 18px;
+    margin-bottom: 18px;
+  }
+  label { display: block; font-size: 0.85rem; color: var(--muted); margin: 12px 0 4px; }
+  input, textarea {
+    width: 100%;
+    background: var(--card2);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    color: var(--text);
+    padding: 12px;
+    font-size: 1rem;
+    font-family: inherit;
+  }
+  textarea { resize: vertical; min-height: 70px; }
+  .row { display: flex; gap: 12px; }
+  .row > div { flex: 1; }
+  button.primary {
+    width: 100%;
+    margin-top: 18px;
+    background: var(--accent);
+    border: none;
+    border-radius: 10px;
+    color: #fff;
+    padding: 14px;
+    font-size: 1.05rem;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  button.primary:active { opacity: 0.85; }
+  .metrics { display: flex; gap: 12px; margin-bottom: 18px; }
+  .metric {
+    flex: 1;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 14px;
+  }
+  .metric .k { font-size: 0.8rem; color: var(--muted); }
+  .metric .v { font-size: 1.6rem; font-weight: 700; margin-top: 4px; }
+  .log {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 10px;
+  }
+  .log .head { font-weight: 600; }
+  .log .date { color: var(--muted); font-size: 0.85rem; margin-right: 8px; }
+  .log .dur { color: var(--accent); font-size: 0.85rem; margin-right: 8px; }
+  .log .detail { margin-top: 8px; font-size: 0.92rem; }
+  .log .detail .field { margin-top: 4px; }
+  .log .detail .flabel { color: var(--muted); }
+  .del {
+    margin-top: 10px;
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--muted);
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+  .empty { color: var(--muted); text-align: center; padding: 20px; }
+  .toast {
+    position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
+    background: var(--accent2); color: #fff; padding: 12px 20px;
+    border-radius: 10px; font-weight: 700; opacity: 0;
+    transition: opacity 0.25s; pointer-events: none; z-index: 10;
+  }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+  <h1>🎱 練習ログ</h1>
+
+  <!-- 記録フォーム -->
+  <div class="card">
+    <h2>📝 今日の練習を記録</h2>
+    <div class="row">
+      <div>
+        <label for="date">練習した日</label>
+        <input type="date" id="date" />
+      </div>
+      <div>
+        <label for="duration">練習時間（分）</label>
+        <input type="number" id="duration" value="60" min="0" max="600" step="15" />
+      </div>
+    </div>
+    <label for="menu">練習メニュー</label>
+    <input type="text" id="menu" placeholder="例: ストップショット、9ボール ゴースト戦" />
+    <label for="result">結果</label>
+    <input type="text" id="result" placeholder="例: 10球中7球成功 / ゴースト 4勝6敗" />
+    <label for="memo">気づき・メモ（任意）</label>
+    <textarea id="memo" placeholder="例: 引き玉のフォロースルーが甘かった"></textarea>
+    <button class="primary" id="saveBtn">記録する</button>
+  </div>
+
+  <!-- 今週サマリ -->
+  <div class="metrics">
+    <div class="metric"><div class="k">今週の練習回数</div><div class="v" id="weekCount">0 回</div></div>
+    <div class="metric"><div class="k">今週の合計時間</div><div class="v" id="weekMin">0 分</div></div>
+  </div>
+
+  <!-- 記録一覧 -->
+  <h2>📚 記録一覧</h2>
+  <div id="list"></div>
+
+  <div class="toast" id="toast">記録したよ！👏</div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    // ---- Supabase接続（anonキーは公開前提・RLSで保護）----
+    const SUPABASE_URL = "https://kohmljujxvcgsklpwqrs.supabase.co";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtvaG1sanVqeHZjZ3NrbHB3cXJzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwMTYzNjYsImV4cCI6MjA5MDU5MjM2Nn0.rlqsgIUneKvoNmuviIgK4BD0g4bcAE6W-WLtOxCt3cM";
+    const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const TABLE = "practice_logs";
+
+    const $ = (id) => document.getElementById(id);
+
+    // 今日の日付をデフォルトに
+    function todayStr() {
+      const d = new Date();
+      const off = d.getTimezoneOffset();
+      return new Date(d.getTime() - off * 60000).toISOString().slice(0, 10);
+    }
+    $("date").value = todayStr();
+
+    function showToast(msg) {
+      const t = $("toast");
+      t.textContent = msg;
+      t.classList.add("show");
+      setTimeout(() => t.classList.remove("show"), 1800);
+    }
+
+    function esc(s) {
+      return (s || "").replace(/[&<>"']/g, (c) =>
+        ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    }
+
+    // 月曜始まりの週初め
+    function weekStart() {
+      const d = new Date(todayStr());
+      const day = (d.getDay() + 6) % 7; // 月=0
+      d.setDate(d.getDate() - day);
+      return d.toISOString().slice(0, 10);
+    }
+
+    async function load() {
+      const { data, error } = await db
+        .from(TABLE)
+        .select("*")
+        .order("practice_date", { ascending: false })
+        .order("created_at", { ascending: false });
+      if (error) {
+        $("list").innerHTML = '<div class="empty">読み込みエラー: ' + esc(error.message) + "</div>";
+        return;
+      }
+      const logs = data || [];
+
+      // 今週サマリ
+      const ws = weekStart();
+      const week = logs.filter((l) => l.practice_date && l.practice_date >= ws);
+      $("weekCount").textContent = week.length + " 回";
+      $("weekMin").textContent = week.reduce((s, l) => s + (l.duration_min || 0), 0) + " 分";
+
+      // 一覧
+      if (logs.length === 0) {
+        $("list").innerHTML = '<div class="empty">まだ記録がないよ。上のフォームから最初の1件を入れてみてね。</div>';
+        return;
+      }
+      $("list").innerHTML = logs.map((l) => `
+        <div class="log">
+          <div class="head">
+            <span class="date">${esc(l.practice_date)}</span>
+            <span class="dur">${l.duration_min || 0}分</span>
+            ${esc(l.menu) || "（メニュー未記入）"}
+          </div>
+          <div class="detail">
+            ${l.result ? `<div class="field"><span class="flabel">結果:</span> ${esc(l.result)}</div>` : ""}
+            ${l.memo ? `<div class="field"><span class="flabel">メモ:</span> ${esc(l.memo)}</div>` : ""}
+          </div>
+          <button class="del" data-id="${l.id}">🗑 削除</button>
+        </div>
+      `).join("");
+
+      document.querySelectorAll(".del").forEach((b) => {
+        b.onclick = async () => {
+          if (!confirm("この記録を削除する？")) return;
+          await db.from(TABLE).delete().eq("id", b.dataset.id);
+          load();
+        };
+      });
+    }
+
+    $("saveBtn").onclick = async () => {
+      const row = {
+        practice_date: $("date").value || todayStr(),
+        duration_min: parseInt($("duration").value || "0", 10),
+        menu: $("menu").value.trim(),
+        result: $("result").value.trim(),
+        memo: $("memo").value.trim(),
+      };
+      $("saveBtn").disabled = true;
+      const { error } = await db.from(TABLE).insert(row);
+      $("saveBtn").disabled = false;
+      if (error) {
+        showToast("保存エラー😣");
+        alert("保存エラー: " + error.message);
+        return;
+      }
+      // フォームをリセット（日付・時間は残す）
+      $("menu").value = "";
+      $("result").value = "";
+      $("memo").value = "";
+      showToast("記録したよ！👏");
+      load();
+    };
+
+    load();
+  </script>
+</body>
+</html>
