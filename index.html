@@ -125,6 +125,10 @@ select.form-input{appearance:none;-webkit-appearance:none;cursor:pointer;}
       </div>
 
       <div id="record-panel" style="display:none;">
+        <div class="card" id="tip-card" style="display:none;background:var(--accent);border:none;">
+          <div class="card-label" style="color:#0a0e0a;">💡 ワンポイント</div>
+          <div id="tip-text" style="color:#0a0e0a;font-weight:600;font-size:14px;line-height:1.55;"></div>
+        </div>
         <div class="card">
           <div class="card-label">練習時間（分）</div>
           <div class="chip-row" id="min-chips"></div>
@@ -196,10 +200,9 @@ select.form-input{appearance:none;-webkit-appearance:none;cursor:pointer;}
         <div class="card-label">小項目を追加</div>
         <div class="form-label">どの大項目に？</div>
         <select class="form-input" id="item-cat-pick"></select>
-        <div class="custom-row" style="margin-top:0;">
-          <input class="form-input" id="new-item" type="text" placeholder="例: ジャンプショット" style="margin-bottom:0;">
-          <button class="mini-btn" onclick="addItem()">追加</button>
-        </div>
+        <input class="form-input" id="new-item" type="text" placeholder="種目名（例: ジャンプショット）">
+        <textarea class="form-input" id="new-item-tip" rows="2" placeholder="ワンポイントアドバイス（任意）"></textarea>
+        <button class="add-btn" onclick="addItem()">追加する</button>
       </div>
 
       <div class="card">
@@ -223,7 +226,7 @@ const SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSI
 const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const TABLE="poollog";
 
-const MIN_PRESETS=[15,30,45,60,90,120];
+const MIN_PRESETS=[5,10,15,30,45,60,90,120];
 const DEFAULTS={
   "基礎":["センターショット","ストップショット","フォロー（押し）","ドロー（引き）","フリ（カット）","直進性チェック"],
   "出し（ポジション）":["ライン出し","スピードコントロール","1クッション出し","L字パターン"],
@@ -231,6 +234,31 @@ const DEFAULTS={
   "守備・特殊":["セーフティ","キックショット","バンクショット","クラスター処理"],
   "ブレイク":["ブレイク練習"],
   "その他":["フリー練習","試合"],
+};
+
+// 各種目のワンポイントアドバイス（Web情報を凝縮）
+const TIPS={
+  "センターショット":"手球の真芯を撞き、キューは肘の真下でまっすぐ長くフォロースルー。グリップは軽く握り、突いた後に引き戻さない。",
+  "ストップショット":"中心撞き＋十分なスピードで、的球に当たる瞬間に手球の前進回転がゼロになる状態を作る。距離が近いほど撞点をほんの少し下げる。",
+  "フォロー（押し）":"中心の1チップ上を撞けば十分（上げ過ぎない）。同じテンポで突き抜き、トップスピンで手球を前へ転がす。",
+  "ドロー（引き）":"中心の1チップ下を中速で。キューを水平に保ち、すくい上げずに水平へ長く突き抜く。引き手の力みが最大の敵。",
+  "フリ（カット）":"手球が触れるべき位置=ゴーストボールを描き、その中心へ真っ直ぐ撞く。狙うのは的球の縁ではなく接触点。薄いほどスピードを足す。",
+  "直進性チェック":"ロングレールへ真芯で撞き、戻りのズレを観察。右へ逸れる=グリップ内回り/肘落ち、左=上体の傾き。全ショットの土台。",
+  "ライン出し":"点でなく『線』で出しを考える。次球を入れやすい角度に手球を運ぶ。ストップ撞きの手球は90度のタンジェント方向へ走る。",
+  "スピードコントロール":"距離は力でなくストロークの長さで調整する。テンポは常に一定。同じ振りで強弱を作る癖をつける。",
+  "1クッション出し":"ストップ系の手球はタンジェント(90度)ラインが基準。入射角=反射角で着地点を読み、回転で微調整する。",
+  "L字パターン":"タンジェントライン＋フォロー/ドローで縦の移動量を作る。次球への振り分けを90度基準で先に予測する。",
+  "9ボール ゴースト戦":"最低3手先まで出しを計画。難しい球は早めに処理し、安全第一の球順で。1ミス=負けの緊張に慣れるのが目的。",
+  "フルラック取り切り":"撞く前に1→9番の順路を声に出して言語化。問題球とキーボール（最終形に必要な球）を先に片付ける。",
+  "ボーラード":"10球を1フレームとし、出しの一貫性を測る。毎球まったく同じプレショットルーティンで崩れを防ぐ。",
+  "14-1":"常に次ラックを割るブレイクボールを確保しておく。クラスターは余裕のあるうちに早めに割る。",
+  "セーフティ":"的球かクッションの陰に手球を隠し、相手との距離を作る。薄く当てて的球と手球を同時にコントロールする。",
+  "キックショット":"鏡像(ミラー)法で狙う。レールの向こうに的球を反転させた点へ、無回転を基準に撞く。ダイヤを目安に。",
+  "バンクショット":"入れたいポケットをレールに鏡像反転した点を狙う。スピードと回転で角度が変わるので、まず無回転を基準にする。",
+  "クラスター処理":"当てる球と散る方向を先に予測。可能なら1球入れながら最小限のスピードで割り、散開後の取り切りまで描く。",
+  "ブレイク練習":"1番に正確にフルヒットし、手球はテーブル中央で止める。パワーよりミート精度とタイミングを優先。",
+  "フリー練習":"課題を1つだけ決めて取り組む。漫然と撞かず、毎回テーマを持つと上達が早い。",
+  "試合":"プレショットルーティンを崩さず、目の前の1球だけに集中。前のミスを引きずらないメンタル管理を。",
 };
 
 let cats=[],items=[],logs=[];
@@ -264,10 +292,18 @@ async function loadAll(){
   const {data,error}=await db.from(TABLE).select("*").order("id",{ascending:true});
   if(error){toast("読込エラー");console.error(error);return;}
   cats=data.filter(r=>r.type==="category").map(r=>({id:r.id,name:r.data.name,order:r.data.order??0}));
-  items=data.filter(r=>r.type==="item").map(r=>({id:r.id,cat:r.data.cat,name:r.data.name}));
+  items=data.filter(r=>r.type==="item").map(r=>({id:r.id,cat:r.data.cat,name:r.data.name,tip:r.data.tip||""}));
   logs=data.filter(r=>r.type==="log").map(r=>({id:r.id,date:r.date,cat:r.data.cat,item:r.data.item,minutes:r.data.minutes,memo:r.data.memo||""}));
   cats.sort((a,b)=>a.order-b.order||a.id-b.id);
   if(cats.length===0){await seedDefaults();return;}
+  // 既定種目でtip未設定のものを自動補填（初回のみ走る）
+  const backfill=items.filter(i=>!i.tip&&TIPS[i.name]);
+  if(backfill.length){
+    await Promise.all(backfill.map(async i=>{
+      const tip=TIPS[i.name];i.tip=tip;
+      await db.from(TABLE).update({data:{cat:i.cat,name:i.name,tip}}).eq("id",i.id);
+    }));
+  }
   renderCatTabs();renderMinChips();renderTodaySummary();
 }
 
@@ -276,7 +312,7 @@ async function seedDefaults(){
   for(const catName of Object.keys(DEFAULTS)){
     const {data:cr}=await db.from(TABLE).insert({type:"category",data:{name:catName,order:order++}}).select().single();
     for(const itemName of DEFAULTS[catName]){
-      await db.from(TABLE).insert({type:"item",data:{cat:cr.id,name:itemName}});
+      await db.from(TABLE).insert({type:"item",data:{cat:cr.id,name:itemName,tip:TIPS[itemName]||""}});
     }
   }
   await loadAll();
@@ -304,7 +340,10 @@ function renderExGrid(){
     const b=document.createElement("button");
     b.className="ex-btn"+(selItem===i.id?" selected":"");
     b.textContent=i.name;
-    b.onclick=()=>{selItem=i.id;renderExGrid();$("record-panel").style.display="block";updateSaveBtn();$("record-panel").scrollIntoView({behavior:"smooth",block:"nearest"});};
+    b.onclick=()=>{selItem=i.id;renderExGrid();$("record-panel").style.display="block";
+      const tipCard=$("tip-card");
+      if(i.tip){$("tip-text").textContent=i.tip;tipCard.style.display="block";}else{tipCard.style.display="none";}
+      updateSaveBtn();$("record-panel").scrollIntoView({behavior:"smooth",block:"nearest"});};
     box.appendChild(b);
   });
 }
@@ -461,10 +500,12 @@ function renderManage(){
     const head=document.createElement("div");head.className="card-label";head.style.cssText="margin:12px 0 6px;color:var(--text2);";head.textContent=c.name;im.appendChild(head);
     items.filter(i=>i.cat===c.id).forEach(it=>{
       const row=document.createElement("div");row.className="manage-row";
-      row.innerHTML=`<div style="font-size:14px;">${esc(it.name)}</div>`;
+      row.innerHTML=`<div style="flex:1;min-width:0;"><div style="font-size:14px;">${esc(it.name)}</div>${it.tip?`<div style="font-size:11px;color:var(--text3);margin-top:3px;line-height:1.4;">💡 ${esc(it.tip)}</div>`:""}</div>`;
+      const edit=document.createElement("button");edit.className="edit-btn";edit.textContent="助言";
+      edit.onclick=()=>editTip(it.id);
       const del=document.createElement("button");del.className="del-btn";del.textContent="削除";
       del.onclick=async()=>{if(!confirm(`「${it.name}」を削除する？`))return;await db.from(TABLE).delete().eq("id",it.id);if(selItem===it.id)selItem=null;await loadAll();renderManage();};
-      row.appendChild(del);im.appendChild(row);
+      row.appendChild(edit);row.appendChild(del);im.appendChild(row);
     });
   });
 }
@@ -475,10 +516,17 @@ async function addCat(){
   $("new-cat").value="";await loadAll();renderManage();toast("追加したよ");
 }
 async function addItem(){
-  const name=$("new-item").value.trim();const catId=Number($("item-cat-pick").value);
+  const name=$("new-item").value.trim();const catId=Number($("item-cat-pick").value);const tip=$("new-item-tip").value.trim();
   if(!name){toast("名前を入れてね");return;}if(!catId){toast("大項目を選んでね");return;}
-  await db.from(TABLE).insert({type:"item",data:{cat:catId,name}});
-  $("new-item").value="";await loadAll();renderManage();toast("追加したよ");
+  await db.from(TABLE).insert({type:"item",data:{cat:catId,name,tip}});
+  $("new-item").value="";$("new-item-tip").value="";await loadAll();renderManage();toast("追加したよ");
+}
+async function editTip(id){
+  const it=items.find(i=>i.id===id);if(!it)return;
+  const v=prompt(`「${it.name}」のワンポイント`,it.tip||"");
+  if(v===null)return;
+  await db.from(TABLE).update({data:{cat:it.cat,name:it.name,tip:v.trim()}}).eq("id",id);
+  await loadAll();renderManage();toast("更新したよ");
 }
 
 // ---------- 起動 ----------
