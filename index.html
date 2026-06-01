@@ -1,295 +1,489 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="練習ログ">
+<meta name="theme-color" content="#0a0e0a">
 <title>🎱 練習ログ</title>
-<meta name="theme-color" content="#0e1117" />
-<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='48' fill='%23222'/%3E%3Ccircle cx='50' cy='38' r='15' fill='%23fff'/%3E%3Ctext x='50' y='45' font-size='18' text-anchor='middle' fill='%23222'%3E8%3C/text%3E%3C/svg%3E" />
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --bg: #0e1117;
-    --card: #1a1d26;
-    --card2: #232733;
-    --line: #2b303c;
-    --text: #e6e8eb;
-    --muted: #9aa0aa;
-    --accent: #ff5a5f;
-    --accent2: #2ea043;
-  }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0;
-    background: var(--bg);
-    color: var(--text);
-    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Segoe UI", sans-serif;
-    line-height: 1.5;
-    padding: 16px;
-    max-width: 640px;
-    margin: 0 auto;
-  }
-  h1 { font-size: 1.6rem; margin: 8px 0 16px; }
-  h2 { font-size: 1.1rem; margin: 0 0 12px; }
-  .card {
-    background: var(--card);
-    border: 1px solid var(--line);
-    border-radius: 14px;
-    padding: 18px;
-    margin-bottom: 18px;
-  }
-  label { display: block; font-size: 0.85rem; color: var(--muted); margin: 12px 0 4px; }
-  input, textarea, select {
-    width: 100%;
-    background: var(--card2);
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    color: var(--text);
-    padding: 12px;
-    font-size: 1rem;
-    font-family: inherit;
-  }
-  select { appearance: none; -webkit-appearance: none; }
-  textarea { resize: vertical; min-height: 70px; }
-  .row { display: flex; gap: 12px; }
-  .row > div { flex: 1; }
-  button.primary {
-    width: 100%;
-    margin-top: 18px;
-    background: var(--accent);
-    border: none;
-    border-radius: 10px;
-    color: #fff;
-    padding: 14px;
-    font-size: 1.05rem;
-    font-weight: 700;
-    cursor: pointer;
-  }
-  button.primary:active { opacity: 0.85; }
-  .metrics { display: flex; gap: 12px; margin-bottom: 18px; }
-  .metric {
-    flex: 1;
-    background: var(--card);
-    border: 1px solid var(--line);
-    border-radius: 14px;
-    padding: 14px;
-  }
-  .metric .k { font-size: 0.8rem; color: var(--muted); }
-  .metric .v { font-size: 1.6rem; font-weight: 700; margin-top: 4px; }
-  .log {
-    background: var(--card);
-    border: 1px solid var(--line);
-    border-radius: 12px;
-    padding: 14px;
-    margin-bottom: 10px;
-  }
-  .log .head { font-weight: 600; }
-  .log .date { color: var(--muted); font-size: 0.85rem; margin-right: 8px; }
-  .log .dur { color: var(--accent); font-size: 0.85rem; margin-right: 8px; }
-  .log .detail { margin-top: 8px; font-size: 0.92rem; }
-  .log .detail .field { margin-top: 4px; }
-  .log .detail .flabel { color: var(--muted); }
-  .del {
-    margin-top: 10px;
-    background: transparent;
-    border: 1px solid var(--line);
-    color: var(--muted);
-    border-radius: 8px;
-    padding: 6px 10px;
-    font-size: 0.85rem;
-    cursor: pointer;
-  }
-  .empty { color: var(--muted); text-align: center; padding: 20px; }
-  .toast {
-    position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
-    background: var(--accent2); color: #fff; padding: 12px 20px;
-    border-radius: 10px; font-weight: 700; opacity: 0;
-    transition: opacity 0.25s; pointer-events: none; z-index: 10;
-  }
-  .toast.show { opacity: 1; }
+:root{
+  --bg:#0a0e0a;--surface:#161b16;--surface2:#1f261f;
+  --border:#2a332a;--border2:#3a463a;
+  --text:#ffffff;--text2:#a8b3a8;--text3:#5f6b5f;
+  --accent:#3ddc84;--accent2:#cc4444;--accent3:#7af0a8;
+  --radius:8px;--radius-sm:5px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Oswald',sans-serif;font-size:15px;overscroll-behavior:none;}
+#app{display:flex;flex-direction:column;height:100dvh;max-width:480px;margin:0 auto;}
+#header{padding:52px 20px 12px;border-bottom:2px solid var(--accent);flex-shrink:0;background:linear-gradient(180deg,#121712 0%,#0a0e0a 100%);}
+#header-row{display:flex;justify-content:space-between;align-items:center;}
+#header-title{font-size:23px;font-weight:700;letter-spacing:1px;color:var(--accent);}
+#header-date{font-size:18px;color:var(--accent);font-family:'DM Mono',monospace;font-weight:500;}
+#header-day{font-size:15px;color:var(--text2);}
+#content{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px 12px 110px;}
+#nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:rgba(10,14,10,0.95);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:2px solid var(--accent);display:flex;padding:6px 4px max(14px,env(safe-area-inset-bottom));z-index:100;}
+.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 4px;border:none;background:transparent;color:var(--text3);font-family:'Oswald',sans-serif;font-size:11px;font-weight:500;cursor:pointer;border-radius:var(--radius-sm);letter-spacing:0.5px;}
+.nav-btn.active{color:var(--accent);}
+.nav-icon{font-size:20px;line-height:1;}
+.screen{display:none;}
+.screen.active{display:block;}
+.card{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:var(--radius);padding:13px 14px;margin-bottom:11px;}
+.card-label{font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:9px;}
+.cat-scroll{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;margin-bottom:10px;scrollbar-width:none;}
+.cat-scroll::-webkit-scrollbar{display:none;}
+.cat-tab{flex-shrink:0;padding:8px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-size:14px;font-weight:600;cursor:pointer;transition:all 0.15s;white-space:nowrap;}
+.cat-tab.active{background:rgba(61,220,132,0.18);border-color:var(--accent);color:var(--accent);}
+.ex-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;}
+.ex-btn{padding:13px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-family:'Oswald',sans-serif;font-size:14px;font-weight:500;cursor:pointer;text-align:center;transition:all 0.15s;line-height:1.3;}
+.ex-btn.selected{background:var(--accent);border-color:var(--accent);color:#0a0e0a;font-weight:700;}
+.ex-btn:active{transform:scale(0.97);}
+.chip-row{display:flex;flex-wrap:wrap;gap:7px;}
+.chip{padding:11px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-family:'DM Mono',monospace;font-size:15px;font-weight:700;cursor:pointer;transition:all 0.15s;}
+.chip.selected{background:rgba(61,220,132,0.18);border-color:var(--accent);color:var(--accent);}
+.chip:active{transform:scale(0.95);}
+.custom-row{display:flex;gap:8px;margin-top:9px;align-items:center;}
+.custom-row input{flex:1;padding:11px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-family:'DM Mono',monospace;font-size:15px;font-weight:700;outline:none;}
+.custom-row input:focus{border-color:var(--accent);}
+.mini-btn{padding:11px 18px;background:linear-gradient(135deg,#3ddc84,#2bb56a);border:none;border-radius:var(--radius);color:#0a0e0a;font-family:'Oswald',sans-serif;font-size:14px;font-weight:700;cursor:pointer;flex-shrink:0;}
+.memo-input{width:100%;padding:11px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-family:'Oswald',sans-serif;font-size:14px;outline:none;resize:none;line-height:1.5;}
+.memo-input:focus{border-color:var(--accent);}
+.add-btn{width:100%;padding:15px;background:linear-gradient(135deg,#3ddc84,#2bb56a);border:none;border-radius:var(--radius);color:#0a0e0a;font-family:'Oswald',sans-serif;font-size:16px;font-weight:700;cursor:pointer;transition:all 0.15s;letter-spacing:1px;}
+.add-btn:disabled{background:var(--surface2);color:var(--text3);}
+.add-btn:active:not(:disabled){filter:brightness(0.9);}
+.badge{display:inline-block;padding:2px 9px;border-radius:var(--radius);font-size:11px;font-weight:700;font-family:'DM Mono',monospace;background:rgba(61,220,132,0.18);color:var(--accent);}
+.log-row{display:flex;justify-content:space-between;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--border);gap:10px;}
+.log-row:last-child{border-bottom:none;}
+.log-main{flex:1;min-width:0;}
+.log-title{font-size:14px;font-weight:600;}
+.log-sub{font-size:12px;color:var(--text3);margin-top:3px;line-height:1.4;}
+.log-min{color:var(--accent);font-family:'DM Mono',monospace;font-weight:700;font-size:13px;margin-right:6px;}
+.del-btn{flex-shrink:0;padding:6px 10px;background:transparent;border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text3);font-size:12px;cursor:pointer;}
+.del-btn:active{border-color:var(--accent2);color:var(--accent2);}
+.edit-btn{flex-shrink:0;padding:6px 10px;background:transparent;border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text2);font-size:12px;cursor:pointer;}
+.empty-state{text-align:center;padding:40px 20px;color:var(--text3);font-size:14px;line-height:1.6;}
+.info-row{display:flex;gap:10px;margin-bottom:11px;}
+.info-box{flex:1;background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:var(--radius);padding:11px 13px;}
+.info-box .k{font-size:10px;font-weight:700;color:var(--accent);letter-spacing:1px;}
+.info-box .v{font-size:22px;font-weight:700;font-family:'DM Mono',monospace;margin-top:3px;}
+.form-label{font-size:11px;font-weight:700;color:var(--accent);letter-spacing:1px;margin-bottom:6px;}
+.form-input{width:100%;padding:11px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-family:'Oswald',sans-serif;font-size:14px;outline:none;margin-bottom:10px;}
+.form-input:focus{border-color:var(--accent);}
+select.form-input{appearance:none;-webkit-appearance:none;cursor:pointer;}
+.section-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+.manage-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--border);gap:10px;}
+.manage-row:last-child{border-bottom:none;}
+.ai-copy-btn{width:100%;padding:14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-family:'Oswald',sans-serif;font-size:14px;font-weight:500;cursor:pointer;margin-top:8px;display:flex;align-items:center;justify-content:center;gap:8px;letter-spacing:0.5px;}
+.ai-copy-btn:active{border-color:var(--accent);}
+.cal-day{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:var(--radius-sm);cursor:pointer;position:relative;}
+.cal-day.empty{cursor:default;}
+.cal-day.has-log{background:rgba(61,220,132,0.15);border:1px solid rgba(61,220,132,0.3);}
+.cal-day.today{border:1.5px solid var(--accent2);}
+.cal-day.selected{background:rgba(61,220,132,0.35)!important;border-color:var(--accent)!important;}
+.cal-day-num{font-size:13px;font-weight:600;color:var(--text2);line-height:1;}
+.cal-day.has-log .cal-day-num{color:var(--text);}
+.cal-min{font-size:9px;font-family:'DM Mono',monospace;font-weight:700;color:var(--accent);margin-top:2px;line-height:1;}
+#toast{position:fixed;top:60px;left:50%;transform:translateX(-50%) translateY(-10px);background:linear-gradient(135deg,#3ddc84,#2bb56a);color:#0a0e0a;font-size:14px;font-weight:700;padding:9px 22px;border-radius:var(--radius);opacity:0;pointer-events:none;transition:all 0.2s;z-index:999;white-space:nowrap;}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+@keyframes float-up{0%{transform:translate(-50%,0) scale(0.8);opacity:0;}20%{transform:translate(-50%,-12px) scale(1.1);opacity:1;}100%{transform:translate(-50%,-80px) scale(1);opacity:0;}}
+.float-text{position:fixed;z-index:9999;pointer-events:none;font-weight:700;font-size:22px;color:var(--accent);text-shadow:0 2px 10px rgba(61,220,132,0.7),0 0 4px #000;animation:float-up 1.1s ease-out forwards;white-space:nowrap;}
+.spin{display:inline-block;width:16px;height:16px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin 0.7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-  <h1>🎱 練習ログ</h1>
-
-  <!-- 記録フォーム -->
-  <div class="card">
-    <h2>📝 今日の練習を記録</h2>
-    <div class="row">
-      <div>
-        <label for="date">練習した日</label>
-        <input type="date" id="date" />
-      </div>
-      <div>
-        <label for="duration">練習時間（分）</label>
-        <input type="number" id="duration" value="60" min="0" max="600" step="15" />
-      </div>
-    </div>
-    <div class="row">
-      <div>
-        <label for="cat">種別（大項目）</label>
-        <select id="cat"></select>
-      </div>
-      <div>
-        <label for="sub">種別（小項目）</label>
-        <select id="sub"></select>
-      </div>
-    </div>
-    <label for="memo">気づき・メモ（任意）</label>
-    <textarea id="memo" placeholder="例: 引き玉のフォロースルーが甘かった"></textarea>
-    <button class="primary" id="saveBtn">記録する</button>
-  </div>
-
-  <!-- 今週サマリ -->
-  <div class="metrics">
-    <div class="metric"><div class="k">今週の練習回数</div><div class="v" id="weekCount">0 回</div></div>
-    <div class="metric"><div class="k">今週の合計時間</div><div class="v" id="weekMin">0 分</div></div>
-  </div>
-
-  <!-- 記録一覧 -->
-  <h2>📚 記録一覧</h2>
-  <div id="list"></div>
-
-  <div class="toast" id="toast">記録したよ！👏</div>
-
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script>
-    // ---- Supabase接続（anonキーは公開前提・RLSで保護）----
-    const SUPABASE_URL = "https://kohmljujxvcgsklpwqrs.supabase.co";
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtvaG1sanVqeHZjZ3NrbHB3cXJzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwMTYzNjYsImV4cCI6MjA5MDU5MjM2Nn0.rlqsgIUneKvoNmuviIgK4BD0g4bcAE6W-WLtOxCt3cM";
-    const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-    const TABLE = "practice_logs";
-
-    const $ = (id) => document.getElementById(id);
-
-    // ---- トレーニング種別（大項目 → 小項目）----
-    const CATEGORIES = {
-      "基礎": ["センターショット", "ストップショット", "フォロー（押し）", "ドロー（引き）", "フリ（カット）", "直進性チェック"],
-      "出し（ポジション）": ["ライン出し", "スピードコントロール", "1クッション出し", "L字パターン"],
-      "実戦": ["9ボール ゴースト戦", "フルラック取り切り", "ボーラード", "14-1"],
-      "守備・特殊": ["セーフティ", "キックショット", "バンクショット", "クラスター処理"],
-      "ブレイク": ["ブレイク練習"],
-      "その他": ["フリー練習", "試合"],
-    };
-
-    // 大項目プルダウンを作る
-    const catSel = $("cat");
-    Object.keys(CATEGORIES).forEach((c) => {
-      const o = document.createElement("option");
-      o.value = c; o.textContent = c;
-      catSel.appendChild(o);
-    });
-
-    // 大項目に応じて小項目を入れ替える
-    function fillSub() {
-      const subSel = $("sub");
-      subSel.innerHTML = "";
-      CATEGORIES[catSel.value].forEach((s) => {
-        const o = document.createElement("option");
-        o.value = s; o.textContent = s;
-        subSel.appendChild(o);
-      });
-    }
-    catSel.onchange = fillSub;
-    fillSub();
-
-    // 今日の日付をデフォルトに
-    function todayStr() {
-      const d = new Date();
-      const off = d.getTimezoneOffset();
-      return new Date(d.getTime() - off * 60000).toISOString().slice(0, 10);
-    }
-    $("date").value = todayStr();
-
-    function showToast(msg) {
-      const t = $("toast");
-      t.textContent = msg;
-      t.classList.add("show");
-      setTimeout(() => t.classList.remove("show"), 1800);
-    }
-
-    function esc(s) {
-      return (s || "").replace(/[&<>"']/g, (c) =>
-        ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-    }
-
-    // 月曜始まりの週初め
-    function weekStart() {
-      const d = new Date(todayStr());
-      const day = (d.getDay() + 6) % 7; // 月=0
-      d.setDate(d.getDate() - day);
-      return d.toISOString().slice(0, 10);
-    }
-
-    async function load() {
-      const { data, error } = await db
-        .from(TABLE)
-        .select("*")
-        .order("practice_date", { ascending: false })
-        .order("created_at", { ascending: false });
-      if (error) {
-        $("list").innerHTML = '<div class="empty">読み込みエラー: ' + esc(error.message) + "</div>";
-        return;
-      }
-      const logs = data || [];
-
-      // 今週サマリ
-      const ws = weekStart();
-      const week = logs.filter((l) => l.practice_date && l.practice_date >= ws);
-      $("weekCount").textContent = week.length + " 回";
-      $("weekMin").textContent = week.reduce((s, l) => s + (l.duration_min || 0), 0) + " 分";
-
-      // 一覧
-      if (logs.length === 0) {
-        $("list").innerHTML = '<div class="empty">まだ記録がないよ。上のフォームから最初の1件を入れてみてね。</div>';
-        return;
-      }
-      $("list").innerHTML = logs.map((l) => `
-        <div class="log">
-          <div class="head">
-            <span class="date">${esc(l.practice_date)}</span>
-            <span class="dur">${l.duration_min || 0}分</span>
-            ${esc(l.menu) || "（メニュー未記入）"}
-          </div>
-          <div class="detail">
-            ${l.result ? `<div class="field"><span class="flabel">結果:</span> ${esc(l.result)}</div>` : ""}
-            ${l.memo ? `<div class="field"><span class="flabel">メモ:</span> ${esc(l.memo)}</div>` : ""}
-          </div>
-          <button class="del" data-id="${l.id}">🗑 削除</button>
+<div id="app">
+  <div id="header">
+    <div id="header-row">
+      <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;">
+        <div id="header-title">🎱 練習ログ</div>
+        <div style="display:flex;align-items:baseline;gap:6px;">
+          <div id="header-date"></div><div id="header-day"></div>
         </div>
-      `).join("");
+      </div>
+    </div>
+  </div>
 
-      document.querySelectorAll(".del").forEach((b) => {
-        b.onclick = async () => {
-          if (!confirm("この記録を削除する？")) return;
-          await db.from(TABLE).delete().eq("id", b.dataset.id);
-          load();
-        };
-      });
+  <div id="content">
+    <!-- ============ 記録 ============ -->
+    <div id="screen-record" class="screen active">
+      <div class="info-row">
+        <div class="info-box"><div class="k">今日の練習</div><div class="v" id="today-count">0回</div></div>
+        <div class="info-box"><div class="k">今日の合計</div><div class="v" id="today-min">0分</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-label">種別（大項目）</div>
+        <div class="cat-scroll" id="cat-tabs"></div>
+        <div class="card-label" style="margin-top:4px;">種目（小項目）</div>
+        <div class="ex-grid" id="ex-grid"></div>
+      </div>
+
+      <div id="record-panel" style="display:none;">
+        <div class="card">
+          <div class="card-label">練習時間（分）</div>
+          <div class="chip-row" id="min-chips"></div>
+          <div class="custom-row">
+            <input type="number" id="custom-min" placeholder="直接入力 分" min="1" max="600" step="5">
+            <button class="mini-btn" onclick="setCustomMin()">OK</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-label">気づき・メモ（任意）</div>
+          <textarea class="memo-input" id="memo" rows="2" placeholder="例: 引き玉のフォロースルーが甘かった"></textarea>
+        </div>
+        <button class="add-btn" id="save-btn" disabled onclick="saveLog()">時間を選んでね</button>
+      </div>
+
+      <div class="card" style="margin-top:14px;">
+        <div class="section-row">
+          <span class="card-label" style="margin-bottom:0;">今日の記録</span>
+          <span class="badge" id="today-badge">0件</span>
+        </div>
+        <div id="today-list"><div class="empty-state">まだ記録がないよ</div></div>
+      </div>
+    </div>
+
+    <!-- ============ 履歴 ============ -->
+    <div id="screen-history" class="screen">
+      <div class="card" style="padding:16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+          <button onclick="changeMonth(-1)" style="background:transparent;border:none;color:var(--text2);font-size:22px;cursor:pointer;padding:4px 12px;">‹</button>
+          <div id="cal-month" style="font-size:15px;font-weight:600;font-family:'DM Mono',monospace;"></div>
+          <button onclick="changeMonth(1)" style="background:transparent;border:none;color:var(--text2);font-size:22px;cursor:pointer;padding:4px 12px;">›</button>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px;">
+          <div style="text-align:center;font-size:11px;color:var(--text3);">日</div><div style="text-align:center;font-size:11px;color:var(--text3);">月</div><div style="text-align:center;font-size:11px;color:var(--text3);">火</div><div style="text-align:center;font-size:11px;color:var(--text3);">水</div><div style="text-align:center;font-size:11px;color:var(--text3);">木</div><div style="text-align:center;font-size:11px;color:var(--text3);">金</div><div style="text-align:center;font-size:11px;color:var(--text3);">土</div>
+        </div>
+        <div id="cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;"></div>
+        <div class="info-row" style="margin-top:14px;margin-bottom:0;">
+          <div class="info-box"><div class="k">今月の練習</div><div class="v" id="month-count">0回</div></div>
+          <div class="info-box"><div class="k">今月の合計</div><div class="v" id="month-min">0分</div></div>
+        </div>
+      </div>
+
+      <div id="day-detail" style="display:none;">
+        <div class="card">
+          <div class="section-row">
+            <div id="day-label" style="font-size:14px;font-weight:600;"></div>
+            <div id="day-badge" class="badge"></div>
+          </div>
+          <div id="day-body"></div>
+        </div>
+        <button class="ai-copy-btn" onclick="copyDayForAI()"><span>📋</span> この日の記録をコピー（AI評価用）</button>
+      </div>
+
+      <button class="ai-copy-btn" onclick="copyMonthForAI()" style="margin-top:12px;"><span>📊</span> 今月の記録をコピー（AI総評用）</button>
+    </div>
+
+    <!-- ============ 種別管理 ============ -->
+    <div id="screen-manage" class="screen">
+      <div class="card">
+        <div class="card-label">大項目を追加</div>
+        <div class="custom-row" style="margin-top:0;">
+          <input class="form-input" id="new-cat" type="text" placeholder="例: メンタル" style="margin-bottom:0;">
+          <button class="mini-btn" onclick="addCat()">追加</button>
+        </div>
+        <div id="cat-manage" style="margin-top:12px;"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-label">小項目を追加</div>
+        <div class="form-label">どの大項目に？</div>
+        <select class="form-input" id="item-cat-pick"></select>
+        <div class="custom-row" style="margin-top:0;">
+          <input class="form-input" id="new-item" type="text" placeholder="例: ジャンプショット" style="margin-bottom:0;">
+          <button class="mini-btn" onclick="addItem()">追加</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-label">登録済みの種別</div>
+        <div id="item-manage"></div>
+      </div>
+    </div>
+  </div>
+
+  <nav id="nav">
+    <button class="nav-btn active" id="nav-record" onclick="showScreen('record')"><span class="nav-icon">⚡</span>記録</button>
+    <button class="nav-btn" id="nav-history" onclick="showScreen('history')"><span class="nav-icon">📈</span>履歴</button>
+    <button class="nav-btn" id="nav-manage" onclick="showScreen('manage')"><span class="nav-icon">⚙️</span>種別管理</button>
+  </nav>
+</div>
+<div id="toast"></div>
+
+<script>
+const SUPABASE_URL="https://kohmljujxvcgsklpwqrs.supabase.co";
+const SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtvaG1sanVqeHZjZ3NrbHB3cXJzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwMTYzNjYsImV4cCI6MjA5MDU5MjM2Nn0.rlqsgIUneKvoNmuviIgK4BD0g4bcAE6W-WLtOxCt3cM";
+const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const TABLE="poollog";
+
+const MIN_PRESETS=[15,30,45,60,90,120];
+const DEFAULTS={
+  "基礎":["センターショット","ストップショット","フォロー（押し）","ドロー（引き）","フリ（カット）","直進性チェック"],
+  "出し（ポジション）":["ライン出し","スピードコントロール","1クッション出し","L字パターン"],
+  "実戦":["9ボール ゴースト戦","フルラック取り切り","ボーラード","14-1"],
+  "守備・特殊":["セーフティ","キックショット","バンクショット","クラスター処理"],
+  "ブレイク":["ブレイク練習"],
+  "その他":["フリー練習","試合"],
+};
+
+let cats=[],items=[],logs=[];
+let selCat=null,selItem=null,selMin=null;
+let calYear,calMonth,selDay=null;
+
+const $=(id)=>document.getElementById(id);
+const todayStr=()=>{const d=new Date();const o=d.getTimezoneOffset();return new Date(d.getTime()-o*60000).toISOString().slice(0,10);};
+function esc(s){return (s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function toast(msg){const t=$("toast");t.textContent=msg;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),1600);}
+function floatText(txt){const el=document.createElement("div");el.className="float-text";el.textContent=txt;el.style.left="50%";el.style.top="50%";document.body.appendChild(el);setTimeout(()=>el.remove(),1100);}
+
+function setHeaderDate(){
+  const d=new Date();const days=["日","月","火","水","木","金","土"];
+  $("header-date").textContent=`${d.getMonth()+1}/${d.getDate()}`;
+  $("header-day").textContent=`(${days[d.getDay()]})`;
+}
+
+function showScreen(s){
+  document.querySelectorAll(".screen").forEach(e=>e.classList.remove("active"));
+  document.querySelectorAll(".nav-btn").forEach(e=>e.classList.remove("active"));
+  $("screen-"+s).classList.add("active");
+  $("nav-"+s).classList.add("active");
+  if(s==="history"){renderCalendar();}
+  if(s==="manage"){renderManage();}
+  $("content").scrollTop=0;
+}
+
+// ---------- データ読み込み ----------
+async function loadAll(){
+  const {data,error}=await db.from(TABLE).select("*").order("id",{ascending:true});
+  if(error){toast("読込エラー");console.error(error);return;}
+  cats=data.filter(r=>r.type==="category").map(r=>({id:r.id,name:r.data.name,order:r.data.order??0}));
+  items=data.filter(r=>r.type==="item").map(r=>({id:r.id,cat:r.data.cat,name:r.data.name}));
+  logs=data.filter(r=>r.type==="log").map(r=>({id:r.id,date:r.date,cat:r.data.cat,item:r.data.item,minutes:r.data.minutes,memo:r.data.memo||""}));
+  cats.sort((a,b)=>a.order-b.order||a.id-b.id);
+  if(cats.length===0){await seedDefaults();return;}
+  renderCatTabs();renderMinChips();renderTodaySummary();
+}
+
+async function seedDefaults(){
+  let order=0;
+  for(const catName of Object.keys(DEFAULTS)){
+    const {data:cr}=await db.from(TABLE).insert({type:"category",data:{name:catName,order:order++}}).select().single();
+    for(const itemName of DEFAULTS[catName]){
+      await db.from(TABLE).insert({type:"item",data:{cat:cr.id,name:itemName}});
     }
+  }
+  await loadAll();
+}
 
-    $("saveBtn").onclick = async () => {
-      const row = {
-        practice_date: $("date").value || todayStr(),
-        duration_min: parseInt($("duration").value || "0", 10),
-        menu: $("cat").value + " / " + $("sub").value,
-        result: "",
-        memo: $("memo").value.trim(),
-      };
-      $("saveBtn").disabled = true;
-      const { error } = await db.from(TABLE).insert(row);
-      $("saveBtn").disabled = false;
-      if (error) {
-        showToast("保存エラー😣");
-        alert("保存エラー: " + error.message);
-        return;
-      }
-      // フォームをリセット（日付・時間・種別は残す）
-      $("memo").value = "";
-      showToast("記録したよ！👏");
-      load();
-    };
+// ---------- 記録画面 ----------
+function renderCatTabs(){
+  const box=$("cat-tabs");box.innerHTML="";
+  cats.forEach(c=>{
+    const b=document.createElement("button");
+    b.className="cat-tab"+(selCat===c.id?" active":"");
+    b.textContent=c.name;
+    b.onclick=()=>{selCat=c.id;selItem=null;updateSaveBtn();renderCatTabs();renderExGrid();};
+    box.appendChild(b);
+  });
+  if(selCat===null&&cats.length){selCat=cats[0].id;box.querySelector(".cat-tab")?.classList.add("active");}
+  renderExGrid();
+}
 
-    load();
-  </script>
+function renderExGrid(){
+  const box=$("ex-grid");box.innerHTML="";
+  const list=items.filter(i=>i.cat===selCat);
+  if(!list.length){box.innerHTML='<div class="empty-state" style="grid-column:1/-1;padding:20px;">この大項目に種目がないよ。<br>「種別管理」から追加してね</div>';return;}
+  list.forEach(i=>{
+    const b=document.createElement("button");
+    b.className="ex-btn"+(selItem===i.id?" selected":"");
+    b.textContent=i.name;
+    b.onclick=()=>{selItem=i.id;renderExGrid();$("record-panel").style.display="block";updateSaveBtn();$("record-panel").scrollIntoView({behavior:"smooth",block:"nearest"});};
+    box.appendChild(b);
+  });
+}
+
+function renderMinChips(){
+  const box=$("min-chips");box.innerHTML="";
+  MIN_PRESETS.forEach(m=>{
+    const b=document.createElement("button");
+    b.className="chip"+(selMin===m?" selected":"");
+    b.textContent=m;
+    b.onclick=()=>{selMin=m;$("custom-min").value="";renderMinChips();updateSaveBtn();};
+    box.appendChild(b);
+  });
+}
+function setCustomMin(){
+  const v=parseInt($("custom-min").value,10);
+  if(!v||v<=0){toast("分を入力してね");return;}
+  selMin=v;renderMinChips();updateSaveBtn();
+}
+function updateSaveBtn(){
+  const btn=$("save-btn");
+  const ok=selCat!==null&&selItem!==null&&selMin;
+  btn.disabled=!ok;
+  btn.textContent=ok?`記録する（${selMin}分）`:(selItem===null?"種目を選んでね":"時間を選んでね");
+}
+
+async function saveLog(){
+  if(selCat===null||selItem===null||!selMin)return;
+  const catName=cats.find(c=>c.id===selCat)?.name||"";
+  const itemName=items.find(i=>i.id===selItem)?.name||"";
+  const btn=$("save-btn");btn.disabled=true;btn.innerHTML='<span class="spin"></span>';
+  const {error}=await db.from(TABLE).insert({type:"log",date:todayStr(),data:{cat:catName,item:itemName,minutes:selMin,memo:$("memo").value.trim()}});
+  if(error){toast("保存エラー😣");btn.disabled=false;updateSaveBtn();return;}
+  floatText(`+${selMin}分 🎱`);toast("記録したよ！👏");
+  $("memo").value="";
+  await loadAll();
+  updateSaveBtn();
+}
+
+function renderTodaySummary(){
+  const t=todayStr();
+  const today=logs.filter(l=>l.date===t);
+  $("today-count").textContent=today.length+"回";
+  $("today-min").textContent=today.reduce((s,l)=>s+(l.minutes||0),0)+"分";
+  $("today-badge").textContent=today.length+"件";
+  const box=$("today-list");
+  if(!today.length){box.innerHTML='<div class="empty-state">まだ記録がないよ</div>';return;}
+  box.innerHTML="";
+  today.slice().reverse().forEach(l=>box.appendChild(logRow(l)));
+}
+
+function logRow(l){
+  const row=document.createElement("div");row.className="log-row";
+  row.innerHTML=`<div class="log-main">
+    <div class="log-title"><span class="log-min">${l.minutes}分</span>${esc(l.cat)} / ${esc(l.item)}</div>
+    ${l.memo?`<div class="log-sub">📝 ${esc(l.memo)}</div>`:""}
+  </div>`;
+  const del=document.createElement("button");del.className="del-btn";del.textContent="削除";
+  del.onclick=async()=>{if(!confirm("この記録を削除する？"))return;await db.from(TABLE).delete().eq("id",l.id);await loadAll();if($("screen-history").classList.contains("active"))renderCalendar();};
+  row.appendChild(del);
+  return row;
+}
+
+// ---------- 履歴（カレンダー） ----------
+function changeMonth(d){calMonth+=d;if(calMonth<0){calMonth=11;calYear--;}if(calMonth>11){calMonth=0;calYear++;}selDay=null;$("day-detail").style.display="none";renderCalendar();}
+function renderCalendar(){
+  if(calYear===undefined){const d=new Date();calYear=d.getFullYear();calMonth=d.getMonth();}
+  $("cal-month").textContent=`${calYear}年 ${calMonth+1}月`;
+  const grid=$("cal-grid");grid.innerHTML="";
+  const first=new Date(calYear,calMonth,1).getDay();
+  const dim=new Date(calYear,calMonth+1,0).getDate();
+  const byDay={};
+  let mCount=0,mMin=0;
+  logs.forEach(l=>{
+    const [y,m]=l.date.split("-").map(Number);
+    if(y===calYear&&m===calMonth+1){const day=Number(l.date.split("-")[2]);(byDay[day]=byDay[day]||[]).push(l);mCount++;mMin+=l.minutes||0;}
+  });
+  $("month-count").textContent=mCount+"回";
+  $("month-min").textContent=mMin+"分";
+  for(let i=0;i<first;i++){const e=document.createElement("div");e.className="cal-day empty";grid.appendChild(e);}
+  const t=todayStr();
+  for(let day=1;day<=dim;day++){
+    const ds=`${calYear}-${String(calMonth+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+    const dayLogs=byDay[day];
+    const el=document.createElement("div");
+    el.className="cal-day"+(dayLogs?" has-log":"")+(ds===t?" today":"")+(ds===selDay?" selected":"");
+    const min=dayLogs?dayLogs.reduce((s,l)=>s+(l.minutes||0),0):0;
+    el.innerHTML=`<div class="cal-day-num">${day}</div>${dayLogs?`<div class="cal-min">${min}</div>`:""}`;
+    if(dayLogs)el.onclick=()=>{selDay=ds;renderCalendar();renderDayDetail(ds,dayLogs);};
+    grid.appendChild(el);
+  }
+}
+function renderDayDetail(ds,dayLogs){
+  $("day-detail").style.display="block";
+  const [y,m,d]=ds.split("-");
+  $("day-label").textContent=`${Number(m)}月${Number(d)}日`;
+  const min=dayLogs.reduce((s,l)=>s+(l.minutes||0),0);
+  $("day-badge").textContent=`${dayLogs.length}件 / ${min}分`;
+  const body=$("day-body");body.innerHTML="";
+  dayLogs.forEach(l=>body.appendChild(logRow(l)));
+  $("day-detail").scrollIntoView({behavior:"smooth",block:"nearest"});
+}
+
+// ---------- AIコピー ----------
+function logsToText(list){
+  return list.map(l=>`・${l.cat} / ${l.item}（${l.minutes}分）${l.memo?" — "+l.memo:""}`).join("\n");
+}
+function copyDayForAI(){
+  if(!selDay)return;
+  const list=logs.filter(l=>l.date===selDay);
+  const min=list.reduce((s,l)=>s+(l.minutes||0),0);
+  const txt=`【ビリヤード練習記録】${selDay}\n合計 ${list.length}件 / ${min}分\n\n${logsToText(list)}\n\nこの日の練習内容について、ビリヤードコーチの視点で講評と次回のアドバイスをください。`;
+  copyText(txt);
+}
+function copyMonthForAI(){
+  const list=logs.filter(l=>{const[y,m]=l.date.split("-").map(Number);return y===calYear&&m===calMonth+1;}).sort((a,b)=>a.date.localeCompare(b.date));
+  if(!list.length){toast("今月の記録がないよ");return;}
+  const min=list.reduce((s,l)=>s+(l.minutes||0),0);
+  const byCat={};list.forEach(l=>{byCat[l.cat]=(byCat[l.cat]||0)+l.minutes;});
+  const catSum=Object.entries(byCat).map(([k,v])=>`${k}: ${v}分`).join(" / ");
+  const byDate={};list.forEach(l=>{(byDate[l.date]=byDate[l.date]||[]).push(l);});
+  const detail=Object.keys(byDate).sort().map(d=>`■ ${d}\n${logsToText(byDate[d])}`).join("\n\n");
+  const txt=`【ビリヤード練習 月次記録】${calYear}年${calMonth+1}月\n練習日数 ${Object.keys(byDate).length}日 / 合計 ${list.length}件 / ${min}分\n部位別: ${catSum}\n\n${detail}\n\n今月の練習量・バランス・継続性をビリヤードコーチの視点で総評し、来月の重点課題を提案してください。`;
+  copyText(txt);
+}
+function copyText(txt){
+  navigator.clipboard.writeText(txt).then(()=>toast("コピーしたよ📋")).catch(()=>{
+    const ta=document.createElement("textarea");ta.value=txt;document.body.appendChild(ta);ta.select();document.execCommand("copy");ta.remove();toast("コピーしたよ📋");
+  });
+}
+
+// ---------- 種別管理 ----------
+function renderManage(){
+  // 大項目リスト
+  const cm=$("cat-manage");cm.innerHTML="";
+  cats.forEach(c=>{
+    const row=document.createElement("div");row.className="manage-row";
+    row.innerHTML=`<div style="font-size:14px;font-weight:600;">${esc(c.name)} <span style="color:var(--text3);font-size:12px;">(${items.filter(i=>i.cat===c.id).length})</span></div>`;
+    const del=document.createElement("button");del.className="del-btn";del.textContent="削除";
+    del.onclick=async()=>{if(!confirm(`「${c.name}」と中の種目を全部削除する？`))return;
+      const ids=items.filter(i=>i.cat===c.id).map(i=>i.id);
+      if(ids.length)await db.from(TABLE).delete().in("id",ids);
+      await db.from(TABLE).delete().eq("id",c.id);
+      if(selCat===c.id)selCat=null;
+      await loadAll();renderManage();};
+    row.appendChild(del);cm.appendChild(row);
+  });
+  // 小項目追加のプルダウン
+  const pick=$("item-cat-pick");pick.innerHTML="";
+  cats.forEach(c=>{const o=document.createElement("option");o.value=c.id;o.textContent=c.name;pick.appendChild(o);});
+  // 種別一覧（大項目ごと）
+  const im=$("item-manage");im.innerHTML="";
+  cats.forEach(c=>{
+    const head=document.createElement("div");head.className="card-label";head.style.cssText="margin:12px 0 6px;color:var(--text2);";head.textContent=c.name;im.appendChild(head);
+    items.filter(i=>i.cat===c.id).forEach(it=>{
+      const row=document.createElement("div");row.className="manage-row";
+      row.innerHTML=`<div style="font-size:14px;">${esc(it.name)}</div>`;
+      const del=document.createElement("button");del.className="del-btn";del.textContent="削除";
+      del.onclick=async()=>{if(!confirm(`「${it.name}」を削除する？`))return;await db.from(TABLE).delete().eq("id",it.id);if(selItem===it.id)selItem=null;await loadAll();renderManage();};
+      row.appendChild(del);im.appendChild(row);
+    });
+  });
+}
+async function addCat(){
+  const name=$("new-cat").value.trim();if(!name){toast("名前を入れてね");return;}
+  const maxOrder=cats.reduce((m,c)=>Math.max(m,c.order),0);
+  await db.from(TABLE).insert({type:"category",data:{name,order:maxOrder+1}});
+  $("new-cat").value="";await loadAll();renderManage();toast("追加したよ");
+}
+async function addItem(){
+  const name=$("new-item").value.trim();const catId=Number($("item-cat-pick").value);
+  if(!name){toast("名前を入れてね");return;}if(!catId){toast("大項目を選んでね");return;}
+  await db.from(TABLE).insert({type:"item",data:{cat:catId,name}});
+  $("new-item").value="";await loadAll();renderManage();toast("追加したよ");
+}
+
+// ---------- 起動 ----------
+setHeaderDate();
+loadAll();
+</script>
 </body>
 </html>
