@@ -1,0 +1,10 @@
+# 秘密情報（Supabaseキー）はGitHubに上げない
+.streamlit/secrets.toml
+
+# Python仮想環境（シンボリックリンクを含む。Cloudflareビルドが壊れる）
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+.DS_Store
