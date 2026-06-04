@@ -129,8 +129,14 @@ select.form-input{appearance:none;-webkit-appearance:none;cursor:pointer;}
           <div class="card-label" style="color:#0a0e0a;">💡 ワンポイント</div>
           <div id="tip-text" style="color:#0a0e0a;font-weight:600;font-size:14px;line-height:1.55;"></div>
         </div>
-        <div class="card">
-          <div class="card-label">練習時間（分）</div>
+        <div class="card" id="timer-card">
+          <div class="card-label">⏱ タイマー計測</div>
+          <div id="timer-display" style="font-size:38px;font-family:'DM Mono',monospace;font-weight:700;text-align:center;letter-spacing:1px;margin:4px 0 12px;">00:00</div>
+          <button class="add-btn" id="timer-btn" onclick="toggleTimer()">▶ 開始</button>
+          <div id="timer-hint" style="font-size:11px;color:var(--text3);text-align:center;margin-top:8px;">押すと計測開始。■終了で実測時間＋メモを記録するよ。</div>
+        </div>
+        <div class="card" id="manual-time-card">
+          <div class="card-label">練習時間（分）— 手動入力</div>
           <div class="chip-row" id="min-chips"></div>
           <div class="custom-row">
             <input type="number" id="custom-min" placeholder="直接入力 分" min="1" max="600" step="5">
@@ -264,6 +270,9 @@ const TIPS={
 let cats=[],items=[],logs=[];
 let selCat=null,selItem=null,selMin=null;
 let calYear,calMonth,selDay=null;
+let timerStart=null,timerInterval=null;
+const TIMER_KEY="poollog_timer";
+const isTimerRunning=()=>timerStart!==null;
 
 const $=(id)=>document.getElementById(id);
 const todayStr=()=>{const d=new Date();const o=d.getTimezoneOffset();return new Date(d.getTime()-o*60000).toISOString().slice(0,10);};
@@ -305,6 +314,7 @@ async function loadAll(){
     }));
   }
   renderCatTabs();renderMinChips();renderTodaySummary();
+  restoreTimer();
 }
 
 async function seedDefaults(){
@@ -325,7 +335,7 @@ function renderCatTabs(){
     const b=document.createElement("button");
     b.className="cat-tab"+(selCat===c.id?" active":"");
     b.textContent=c.name;
-    b.onclick=()=>{selCat=c.id;selItem=null;updateSaveBtn();renderCatTabs();renderExGrid();};
+    b.onclick=()=>{if(isTimerRunning()){toast("計測中だよ。■終了してから切り替えてね");return;}selCat=c.id;selItem=null;updateSaveBtn();renderCatTabs();renderExGrid();};
     box.appendChild(b);
   });
   if(selCat===null&&cats.length){selCat=cats[0].id;box.querySelector(".cat-tab")?.classList.add("active");}
@@ -340,7 +350,7 @@ function renderExGrid(){
     const b=document.createElement("button");
     b.className="ex-btn"+(selItem===i.id?" selected":"");
     b.textContent=i.name;
-    b.onclick=()=>{selItem=i.id;renderExGrid();$("record-panel").style.display="block";
+    b.onclick=()=>{if(isTimerRunning()){toast("計測中だよ。■終了してから切り替えてね");return;}selItem=i.id;renderExGrid();$("record-panel").style.display="block";
       const tipCard=$("tip-card");
       if(i.tip){$("tip-text").textContent=i.tip;tipCard.style.display="block";}else{tipCard.style.display="none";}
       updateSaveBtn();$("record-panel").scrollIntoView({behavior:"smooth",block:"nearest"});};
@@ -370,17 +380,79 @@ function updateSaveBtn(){
   btn.textContent=ok?`記録する（${selMin}分）`:(selItem===null?"種目を選んでね":"時間を選んでね");
 }
 
-async function saveLog(){
-  if(selCat===null||selItem===null||!selMin)return;
+async function saveEntry(minutes){
+  if(selCat===null||selItem===null||!minutes)return false;
   const catName=cats.find(c=>c.id===selCat)?.name||"";
   const itemName=items.find(i=>i.id===selItem)?.name||"";
-  const btn=$("save-btn");btn.disabled=true;btn.innerHTML='<span class="spin"></span>';
-  const {error}=await db.from(TABLE).insert({type:"log",date:todayStr(),data:{cat:catName,item:itemName,minutes:selMin,memo:$("memo").value.trim()}});
-  if(error){toast("保存エラー😣");btn.disabled=false;updateSaveBtn();return;}
-  floatText(`+${selMin}分 🎱`);toast("記録したよ！👏");
+  const {error}=await db.from(TABLE).insert({type:"log",date:todayStr(),data:{cat:catName,item:itemName,minutes,memo:$("memo").value.trim()}});
+  if(error){toast("保存エラー😣");return false;}
+  floatText(`+${minutes}分 🎱`);toast("記録したよ！👏");
   $("memo").value="";
   await loadAll();
-  updateSaveBtn();
+  return true;
+}
+async function saveLog(){
+  if(selCat===null||selItem===null||!selMin)return;
+  const btn=$("save-btn");btn.disabled=true;btn.innerHTML='<span class="spin"></span>';
+  const ok=await saveEntry(selMin);
+  btn.disabled=false;updateSaveBtn();
+  if(ok){selMin=null;renderMinChips();updateSaveBtn();}
+}
+
+// ---------- タイマー ----------
+function fmtElapsed(ms){
+  const s=Math.floor(ms/1000);const m=Math.floor(s/60);const sec=s%60;
+  return `${String(m).padStart(2,"0")}:${String(sec).padStart(2,"0")}`;
+}
+function tickTimer(){if(timerStart!==null)$("timer-display").textContent=fmtElapsed(Date.now()-timerStart);}
+function setTimerUI(running){
+  const btn=$("timer-btn");
+  if(running){
+    btn.textContent="■ 終了して記録";
+    btn.style.background="linear-gradient(135deg,#cc4444,#a83333)";btn.style.color="#fff";
+    $("manual-time-card").style.display="none";
+    $("save-btn").style.display="none";
+    $("timer-hint").textContent="計測中…メモは今書いてもOK。■終了で記録するよ。";
+  }else{
+    btn.textContent="▶ 開始";
+    btn.style.background="";btn.style.color="";
+    $("manual-time-card").style.display="block";
+    $("save-btn").style.display="block";
+    $("timer-display").textContent="00:00";
+    $("timer-hint").textContent="押すと計測開始。■終了で実測時間＋メモを記録するよ。";
+  }
+}
+async function toggleTimer(){
+  if(!isTimerRunning()){
+    if(selCat===null||selItem===null){toast("先に種目を選んでね");return;}
+    timerStart=Date.now();
+    localStorage.setItem(TIMER_KEY,JSON.stringify({catId:selCat,itemId:selItem,startMs:timerStart}));
+    setTimerUI(true);tickTimer();
+    timerInterval=setInterval(tickTimer,1000);
+  }else{
+    const elapsed=Date.now()-timerStart;
+    const minutes=Math.max(1,Math.round(elapsed/60000));
+    clearInterval(timerInterval);timerInterval=null;
+    const startedAt=timerStart;timerStart=null;
+    localStorage.removeItem(TIMER_KEY);
+    const btn=$("timer-btn");btn.disabled=true;btn.innerHTML='<span class="spin"></span>';
+    const ok=await saveEntry(minutes);
+    btn.disabled=false;
+    if(!ok){timerStart=startedAt;localStorage.setItem(TIMER_KEY,JSON.stringify({catId:selCat,itemId:selItem,startMs:startedAt}));timerInterval=setInterval(tickTimer,1000);setTimerUI(true);tickTimer();return;}
+    setTimerUI(false);
+  }
+}
+function restoreTimer(){
+  const raw=localStorage.getItem(TIMER_KEY);if(!raw)return;
+  let t;try{t=JSON.parse(raw);}catch(e){localStorage.removeItem(TIMER_KEY);return;}
+  if(!cats.find(c=>c.id===t.catId)||!items.find(i=>i.id===t.itemId)){localStorage.removeItem(TIMER_KEY);return;}
+  selCat=t.catId;selItem=t.itemId;timerStart=t.startMs;
+  renderCatTabs();
+  const it=items.find(i=>i.id===t.itemId);
+  $("record-panel").style.display="block";
+  if(it.tip){$("tip-text").textContent=it.tip;$("tip-card").style.display="block";}
+  setTimerUI(true);tickTimer();
+  timerInterval=setInterval(tickTimer,1000);
 }
 
 function renderTodaySummary(){
