@@ -117,6 +117,16 @@ select.form-input{appearance:none;-webkit-appearance:none;cursor:pointer;}
         <div class="info-box"><div class="k">今日の合計</div><div class="v" id="today-min">0分</div></div>
       </div>
 
+      <select class="form-input" id="routine-pick" style="margin-bottom:11px;" onchange="startRoutine()">
+        <option value="">🔁 ルーティンを選んで開始</option>
+      </select>
+      <div id="routine-progress" class="card" style="display:none;border-left-color:var(--accent3);">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+          <div style="flex:1;min-width:0;"><div class="card-label" style="margin-bottom:2px;">🔁 ルーティン実行中</div><div id="routine-progress-text" style="font-size:14px;font-weight:600;"></div></div>
+          <button class="del-btn" onclick="cancelRoutine()">中止</button>
+        </div>
+      </div>
+
       <div class="card">
         <div class="card-label">種別（大項目）</div>
         <div class="cat-scroll" id="cat-tabs"></div>
@@ -212,6 +222,16 @@ select.form-input{appearance:none;-webkit-appearance:none;cursor:pointer;}
       </div>
 
       <div class="card">
+        <div class="card-label">🔁 ルーティンを作る</div>
+        <input class="form-input" id="new-routine-name" type="text" placeholder="例: ウォームアップ">
+        <div style="font-size:11px;color:var(--text3);margin:2px 0 6px;">種目をタップで追加（タップした順＝実施順）</div>
+        <div id="routine-picker" class="ex-grid" style="margin-bottom:8px;"></div>
+        <div id="routine-order" style="font-size:13px;color:var(--text2);line-height:1.9;margin-bottom:10px;"></div>
+        <button class="add-btn" onclick="saveRoutine()">ルーティンを保存</button>
+        <div id="routine-list" style="margin-top:14px;"></div>
+      </div>
+
+      <div class="card">
         <div class="card-label">登録済みの種別</div>
         <div id="item-manage"></div>
       </div>
@@ -267,9 +287,10 @@ const TIPS={
   "試合":"プレショットルーティンを崩さず、目の前の1球だけに集中。前のミスを引きずらないメンタル管理を。",
 };
 
-let cats=[],items=[],logs=[];
+let cats=[],items=[],logs=[],routines=[];
 let selCat=null,selItem=null,selMin=null;
 let calYear,calMonth,selDay=null;
+let activeRoutine=null,routineDraft=[];
 let timerStart=null,timerInterval=null;
 const TIMER_KEY="poollog_timer";
 const isTimerRunning=()=>timerStart!==null;
@@ -303,6 +324,7 @@ async function loadAll(){
   cats=data.filter(r=>r.type==="category").map(r=>({id:r.id,name:r.data.name,order:r.data.order??0}));
   items=data.filter(r=>r.type==="item").map(r=>({id:r.id,cat:r.data.cat,name:r.data.name,tip:r.data.tip||""}));
   logs=data.filter(r=>r.type==="log").map(r=>({id:r.id,date:r.date,cat:r.data.cat,item:r.data.item,minutes:r.data.minutes,memo:r.data.memo||""}));
+  routines=data.filter(r=>r.type==="routine").map(r=>({id:r.id,name:r.data.name,items:r.data.items||[]}));
   cats.sort((a,b)=>a.order-b.order||a.id-b.id);
   if(cats.length===0){await seedDefaults();return;}
   // 既定種目でtip未設定のものを自動補填（初回のみ走る）
@@ -313,7 +335,7 @@ async function loadAll(){
       await db.from(TABLE).update({data:{cat:i.cat,name:i.name,tip}}).eq("id",i.id);
     }));
   }
-  renderCatTabs();renderMinChips();renderTodaySummary();
+  renderCatTabs();renderMinChips();renderTodaySummary();renderRoutinePicker();
   restoreTimer();
 }
 
@@ -389,6 +411,7 @@ async function saveEntry(minutes){
   floatText(`+${minutes}分 🎱`);toast("記録したよ！👏");
   $("memo").value="";
   await loadAll();
+  if(activeRoutine)setTimeout(advanceRoutine,250);
   return true;
 }
 async function saveLog(){
@@ -477,6 +500,48 @@ function logRow(l){
   del.onclick=async()=>{if(!confirm("この記録を削除する？"))return;await db.from(TABLE).delete().eq("id",l.id);await loadAll();if($("screen-history").classList.contains("active"))renderCalendar();};
   row.appendChild(del);
   return row;
+}
+
+// ---------- ルーティン実行 ----------
+function renderRoutinePicker(){
+  const sel=$("routine-pick");const cur=sel.value;
+  sel.innerHTML='<option value="">🔁 ルーティンを選んで開始</option>';
+  routines.forEach(r=>{const o=document.createElement("option");o.value=r.id;o.textContent=`🔁 ${r.name}（${r.items.length}種目）`;sel.appendChild(o);});
+  sel.value=activeRoutine?"":cur;
+}
+function startRoutine(){
+  const id=Number($("routine-pick").value);if(!id)return;
+  if(isTimerRunning()){toast("計測中だよ。■終了してからね");$("routine-pick").value="";return;}
+  const r=routines.find(x=>x.id===id);if(!r)return;
+  const queue=r.items.filter(iid=>items.find(i=>i.id===iid));
+  if(!queue.length){toast("この中の種目が無いみたい");return;}
+  activeRoutine={name:r.name,items:queue,pos:0};
+  $("routine-progress").style.display="block";
+  gotoRoutineStep(0);
+}
+function gotoRoutineStep(pos){
+  const itemId=activeRoutine.items[pos];
+  const it=items.find(i=>i.id===itemId);
+  selCat=it.cat;selItem=it.id;
+  renderCatTabs();
+  $("record-panel").style.display="block";
+  if(it.tip){$("tip-text").textContent=it.tip;$("tip-card").style.display="block";}else{$("tip-card").style.display="none";}
+  updateSaveBtn();
+  $("routine-progress-text").textContent=`${activeRoutine.name}（${pos+1}/${activeRoutine.items.length}）→ ${it.name}`;
+  $("routine-progress").scrollIntoView({behavior:"smooth",block:"nearest"});
+}
+function advanceRoutine(){
+  if(!activeRoutine)return;
+  activeRoutine.pos++;
+  if(activeRoutine.pos>=activeRoutine.items.length){
+    floatText("ルーティン完了！🎉");toast(`「${activeRoutine.name}」完了！お疲れさま👏`);
+    cancelRoutine();
+  }else{
+    gotoRoutineStep(activeRoutine.pos);
+  }
+}
+function cancelRoutine(){
+  activeRoutine=null;$("routine-progress").style.display="none";$("routine-pick").value="";
 }
 
 // ---------- 履歴（カレンダー） ----------
@@ -580,6 +645,43 @@ function renderManage(){
       row.appendChild(edit);row.appendChild(del);im.appendChild(row);
     });
   });
+  renderRoutineBuilder();
+}
+
+// ルーティン作成UI
+function renderRoutineBuilder(){
+  // 種目ピッカー（タップで順番に追加）
+  const pk=$("routine-picker");pk.innerHTML="";
+  items.forEach(it=>{
+    const b=document.createElement("button");
+    const idx=routineDraft.indexOf(it.id);
+    b.className="ex-btn"+(idx>=0?" selected":"");
+    b.textContent=(idx>=0?`${idx+1}. `:"")+it.name;
+    b.onclick=()=>{const p=routineDraft.indexOf(it.id);if(p>=0)routineDraft.splice(p,1);else routineDraft.push(it.id);renderRoutineBuilder();};
+    pk.appendChild(b);
+  });
+  // 並び順表示
+  const ord=$("routine-order");
+  ord.innerHTML=routineDraft.length?("▶ "+routineDraft.map((iid,n)=>`${n+1}.${esc(items.find(i=>i.id===iid)?.name||"?")}`).join(" → ")):'<span style="color:var(--text3);">種目をタップで追加</span>';
+  // 保存済みルーティン一覧
+  const list=$("routine-list");list.innerHTML="";
+  if(!routines.length){list.innerHTML='<div style="font-size:12px;color:var(--text3);">まだルーティンがないよ</div>';}
+  routines.forEach(r=>{
+    const row=document.createElement("div");row.className="manage-row";
+    const names=r.items.map(iid=>items.find(i=>i.id===iid)?.name).filter(Boolean).join(" → ");
+    row.innerHTML=`<div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:600;">🔁 ${esc(r.name)}</div><div style="font-size:11px;color:var(--text3);margin-top:3px;line-height:1.4;">${esc(names)}</div></div>`;
+    const del=document.createElement("button");del.className="del-btn";del.textContent="削除";
+    del.onclick=async()=>{if(!confirm(`ルーティン「${r.name}」を削除する？`))return;await db.from(TABLE).delete().eq("id",r.id);await loadAll();renderManage();};
+    row.appendChild(del);list.appendChild(row);
+  });
+}
+async function saveRoutine(){
+  const name=$("new-routine-name").value.trim();
+  if(!name){toast("ルーティン名を入れてね");return;}
+  if(!routineDraft.length){toast("種目を1つ以上選んでね");return;}
+  await db.from(TABLE).insert({type:"routine",data:{name,items:routineDraft.slice()}});
+  $("new-routine-name").value="";routineDraft=[];
+  await loadAll();renderManage();toast("ルーティンを保存したよ🔁");
 }
 async function addCat(){
   const name=$("new-cat").value.trim();if(!name){toast("名前を入れてね");return;}
