@@ -122,7 +122,7 @@ select.form-input{appearance:none;-webkit-appearance:none;cursor:pointer;}
       </select>
       <div id="routine-progress" class="card" style="display:none;border-left-color:var(--accent3);">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
-          <div style="flex:1;min-width:0;"><div class="card-label" style="margin-bottom:2px;">🔁 ルーティン実行中</div><div id="routine-progress-text" style="font-size:14px;font-weight:600;"></div></div>
+          <div style="flex:1;min-width:0;"><div class="card-label" style="margin-bottom:2px;">🔁 ルーティン実行中</div><div id="routine-progress-text" style="font-size:14px;font-weight:600;"></div><div id="routine-note" style="font-size:11px;color:var(--text3);margin-top:4px;line-height:1.4;"></div></div>
           <button class="del-btn" onclick="cancelRoutine()">中止</button>
         </div>
       </div>
@@ -227,6 +227,7 @@ select.form-input{appearance:none;-webkit-appearance:none;cursor:pointer;}
         <div style="font-size:11px;color:var(--text3);margin:2px 0 6px;">種目をタップで追加（タップした順＝実施順）</div>
         <div id="routine-picker" class="ex-grid" style="margin-bottom:8px;"></div>
         <div id="routine-order" style="font-size:13px;color:var(--text2);line-height:1.9;margin-bottom:10px;"></div>
+        <textarea class="form-input" id="new-routine-note" rows="2" placeholder="出典・ねらい（任意）"></textarea>
         <button class="add-btn" onclick="saveRoutine()">ルーティンを保存</button>
         <div id="routine-list" style="margin-top:14px;"></div>
       </div>
@@ -324,7 +325,7 @@ async function loadAll(){
   cats=data.filter(r=>r.type==="category").map(r=>({id:r.id,name:r.data.name,order:r.data.order??0}));
   items=data.filter(r=>r.type==="item").map(r=>({id:r.id,cat:r.data.cat,name:r.data.name,tip:r.data.tip||""}));
   logs=data.filter(r=>r.type==="log").map(r=>({id:r.id,date:r.date,cat:r.data.cat,item:r.data.item,minutes:r.data.minutes,memo:r.data.memo||""}));
-  routines=data.filter(r=>r.type==="routine").map(r=>({id:r.id,name:r.data.name,items:r.data.items||[]}));
+  routines=data.filter(r=>r.type==="routine").map(r=>({id:r.id,name:r.data.name,items:r.data.items||[],note:r.data.note||""}));
   cats.sort((a,b)=>a.order-b.order||a.id-b.id);
   if(cats.length===0){await seedDefaults();return;}
   // 既定種目でtip未設定のものを自動補填（初回のみ走る）
@@ -515,8 +516,9 @@ function startRoutine(){
   const r=routines.find(x=>x.id===id);if(!r)return;
   const queue=r.items.filter(iid=>items.find(i=>i.id===iid));
   if(!queue.length){toast("この中の種目が無いみたい");return;}
-  activeRoutine={name:r.name,items:queue,pos:0};
+  activeRoutine={name:r.name,items:queue,pos:0,note:r.note};
   $("routine-progress").style.display="block";
+  $("routine-note").textContent=r.note||"";
   gotoRoutineStep(0);
 }
 function gotoRoutineStep(pos){
@@ -669,7 +671,7 @@ function renderRoutineBuilder(){
   routines.forEach(r=>{
     const row=document.createElement("div");row.className="manage-row";
     const names=r.items.map(iid=>items.find(i=>i.id===iid)?.name).filter(Boolean).join(" → ");
-    row.innerHTML=`<div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:600;">🔁 ${esc(r.name)}</div><div style="font-size:11px;color:var(--text3);margin-top:3px;line-height:1.4;">${esc(names)}</div></div>`;
+    row.innerHTML=`<div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:600;">🔁 ${esc(r.name)}</div><div style="font-size:11px;color:var(--text2);margin-top:3px;line-height:1.4;">${esc(names)}</div>${r.note?`<div style="font-size:11px;color:var(--text3);margin-top:3px;line-height:1.4;">📖 ${esc(r.note)}</div>`:""}</div>`;
     const del=document.createElement("button");del.className="del-btn";del.textContent="削除";
     del.onclick=async()=>{if(!confirm(`ルーティン「${r.name}」を削除する？`))return;await db.from(TABLE).delete().eq("id",r.id);await loadAll();renderManage();};
     row.appendChild(del);list.appendChild(row);
@@ -679,8 +681,9 @@ async function saveRoutine(){
   const name=$("new-routine-name").value.trim();
   if(!name){toast("ルーティン名を入れてね");return;}
   if(!routineDraft.length){toast("種目を1つ以上選んでね");return;}
-  await db.from(TABLE).insert({type:"routine",data:{name,items:routineDraft.slice()}});
-  $("new-routine-name").value="";routineDraft=[];
+  const note=$("new-routine-note").value.trim();
+  await db.from(TABLE).insert({type:"routine",data:{name,items:routineDraft.slice(),note}});
+  $("new-routine-name").value="";$("new-routine-note").value="";routineDraft=[];
   await loadAll();renderManage();toast("ルーティンを保存したよ🔁");
 }
 async function addCat(){
