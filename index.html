@@ -8,6 +8,10 @@
 <meta name="apple-mobile-web-app-title" content="練習ログ">
 <meta name="theme-color" content="#0a0e0a">
 <title>🎱 練習ログ</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -709,6 +713,11 @@ async function editTip(id){
 // ---------- 起動 ----------
 setHeaderDate();
 loadAll();
+
+// PWA: Service Worker登録
+if("serviceWorker" in navigator){
+  window.addEventListener("load",()=>{navigator.serviceWorker.register("sw.js").catch(()=>{});});
+}
 </script>
 </body>
 </html>
