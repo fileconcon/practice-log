@@ -143,6 +143,10 @@ select.form-input{appearance:none;-webkit-appearance:none;cursor:pointer;}
           <div class="card-label" style="color:#0a0e0a;">💡 ワンポイント</div>
           <div id="tip-text" style="color:#0a0e0a;font-weight:600;font-size:14px;line-height:1.55;"></div>
         </div>
+        <div class="card" id="past-card" style="display:none;border-left-color:var(--accent3);">
+          <div class="card-label">📝 前回の気づき（この種目）</div>
+          <div id="past-list" style="font-size:13px;line-height:1.5;"></div>
+        </div>
         <div class="card" id="timer-card">
           <div class="card-label">⏱ タイマー計測</div>
           <div id="timer-display" style="font-size:38px;font-family:'DM Mono',monospace;font-weight:700;text-align:center;letter-spacing:1px;margin:4px 0 12px;">00:00</div>
@@ -175,6 +179,18 @@ select.form-input{appearance:none;-webkit-appearance:none;cursor:pointer;}
 
     <!-- ============ 履歴 ============ -->
     <div id="screen-history" class="screen">
+      <div style="display:flex;gap:6px;margin-bottom:10px;">
+        <button class="cat-tab active" id="htab-cal" onclick="setHistTab('cal')" style="flex:1;text-align:center;">📅 カレンダー</button>
+        <button class="cat-tab" id="htab-ins" onclick="setHistTab('ins')" style="flex:1;text-align:center;">📝 気づき</button>
+      </div>
+      <div id="hist-ins" style="display:none;">
+        <div class="card">
+          <div class="card-label">🔍 種目で絞る</div>
+          <select class="form-input" id="ins-filter" style="margin-bottom:0;" onchange="renderInsights()"></select>
+        </div>
+        <div id="ins-list"></div>
+      </div>
+      <div id="hist-cal">
       <div class="card" style="padding:16px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
           <button onclick="changeMonth(-1)" style="background:transparent;border:none;color:var(--text2);font-size:22px;cursor:pointer;padding:4px 12px;">‹</button>
@@ -203,6 +219,7 @@ select.form-input{appearance:none;-webkit-appearance:none;cursor:pointer;}
       </div>
 
       <button class="ai-copy-btn" onclick="copyMonthForAI()" style="margin-top:12px;"><span>📊</span> 今月の記録をコピー（AI総評用）</button>
+      </div>
     </div>
 
     <!-- ============ 種別管理 ============ -->
@@ -317,7 +334,7 @@ function showScreen(s){
   document.querySelectorAll(".nav-btn").forEach(e=>e.classList.remove("active"));
   $("screen-"+s).classList.add("active");
   $("nav-"+s).classList.add("active");
-  if(s==="history"){renderCalendar();}
+  if(s==="history"){renderCalendar();if($("hist-ins").style.display==="block")renderInsights();}
   if(s==="manage"){renderManage();}
   $("content").scrollTop=0;
 }
@@ -380,6 +397,7 @@ function renderExGrid(){
     b.onclick=()=>{if(isTimerRunning()){toast("計測中だよ。■終了してから切り替えてね");return;}selItem=i.id;renderExGrid();$("record-panel").style.display="block";
       const tipCard=$("tip-card");
       if(i.tip){$("tip-text").textContent=i.tip;tipCard.style.display="block";}else{tipCard.style.display="none";}
+      renderPastMemos(i.name);
       updateSaveBtn();$("record-panel").scrollIntoView({behavior:"smooth",block:"nearest"});};
     box.appendChild(b);
   });
@@ -479,6 +497,7 @@ function restoreTimer(){
   const it=items.find(i=>i.id===t.itemId);
   $("record-panel").style.display="block";
   if(it.tip){$("tip-text").textContent=it.tip;$("tip-card").style.display="block";}
+  renderPastMemos(it.name);
   setTimerUI(true);tickTimer();
   timerInterval=setInterval(tickTimer,1000);
 }
@@ -532,6 +551,7 @@ function gotoRoutineStep(pos){
   renderCatTabs();
   $("record-panel").style.display="block";
   if(it.tip){$("tip-text").textContent=it.tip;$("tip-card").style.display="block";}else{$("tip-card").style.display="none";}
+  renderPastMemos(it.name);
   updateSaveBtn();
   $("routine-progress-text").textContent=`${activeRoutine.name}（${pos+1}/${activeRoutine.items.length}）→ ${it.name}`;
   $("routine-progress").scrollIntoView({behavior:"smooth",block:"nearest"});
@@ -548,6 +568,37 @@ function advanceRoutine(){
 }
 function cancelRoutine(){
   activeRoutine=null;$("routine-progress").style.display="none";$("routine-pick").value="";
+}
+
+// ---------- 前回の気づき ----------
+function renderPastMemos(itemName){
+  const card=$("past-card"),list=$("past-list");
+  const past=logs.filter(l=>l.item===itemName&&l.memo).sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id).slice(0,3);
+  if(!past.length){card.style.display="none";return;}
+  list.innerHTML=past.map(l=>`<div style="padding:8px 0;border-bottom:1px solid var(--border);"><div style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace;">${esc(l.date)} ・ ${l.minutes}分</div><div style="margin-top:2px;color:var(--text);">${esc(l.memo)}</div></div>`).join("");
+  list.lastElementChild&&(list.lastElementChild.style.borderBottom="none");
+  card.style.display="block";
+}
+
+// ---------- 履歴: タブ切替 ----------
+function setHistTab(t){
+  $("hist-cal").style.display=t==="cal"?"block":"none";
+  $("hist-ins").style.display=t==="ins"?"block":"none";
+  $("htab-cal").classList.toggle("active",t==="cal");
+  $("htab-ins").classList.toggle("active",t==="ins");
+  if(t==="ins")renderInsights();
+}
+
+// ---------- 履歴: 気づき一覧 ----------
+function renderInsights(){
+  const sel=$("ins-filter");const cur=sel.value;
+  const itemsWithMemo=Array.from(new Set(logs.filter(l=>l.memo).map(l=>l.item)));
+  sel.innerHTML='<option value="">すべての種目</option>'+itemsWithMemo.sort().map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join("");
+  sel.value=cur;
+  const filtered=logs.filter(l=>l.memo&&(!cur||l.item===cur)).sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id);
+  const box=$("ins-list");
+  if(!filtered.length){box.innerHTML='<div class="empty-state">気づきメモが付いた記録はまだないよ</div>';return;}
+  box.innerHTML=filtered.map(l=>`<div class="card" style="padding:12px 14px;"><div style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace;">${esc(l.date)} ・ <span style="color:var(--accent);">${l.minutes}分</span> ・ ${esc(l.cat)} / ${esc(l.item)}</div><div style="margin-top:6px;font-size:14px;line-height:1.5;">${esc(l.memo)}</div></div>`).join("");
 }
 
 // ---------- 履歴（カレンダー） ----------
