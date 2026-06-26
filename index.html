@@ -382,31 +382,33 @@ async function loadAll(){
   renderSessionBar();
 }
 
-// ===== 練習セッション経過バー（とれログ式の自動計測）=====
+// ===== 練習セッション経過バー：今日「最初に触った時刻」からの壁時計合計 =====
 const SESSION_TARGET_MIN=90;   // バー満タン＝90分
 const SESSION_WARN_MIN=60;     // 60分でオレンジ
-const SESSION_GAP_MIN=30;      // 最後の記録から30分空いたらセッション終了とみなす
 let sessionBarInterval=null;
+function sessionKey(){return "poollog_session_start_"+todayStr();}
+function markSessionStart(){
+  const k=sessionKey();
+  if(!localStorage.getItem(k))localStorage.setItem(k,String(Date.now()));
+  renderSessionBar();
+}
 function getCurrentSession(){
   const today=todayStr();
-  // 各記録を [実開始, 記録時刻] の区間に。実開始 = 記録時刻 − 記録した分数（タイマー長時間計測のズレ補正）
-  const segs=logs.filter(l=>l.date===today&&l.created_at).map(l=>{
-    const end=new Date(l.created_at).getTime();
-    return {start:end-(l.minutes||0)*60000,end};
-  });
-  const now=Date.now();
-  if(timerStart!==null)segs.push({start:timerStart,end:now}); // 計測中のタイマーも区間に含める
-  if(segs.length===0)return null;
-  segs.sort((a,b)=>a.start-b.start);
-  const lastEnd=segs[segs.length-1].end;
-  if(timerStart===null&&now-lastEnd>SESSION_GAP_MIN*60000)return null; // セッション終了→バーを隠す
-  // 最後の区間を含む連続グループの開始時刻を求める
-  let gStart=segs[segs.length-1].start;
-  for(let i=segs.length-1;i>0;i--){
-    if(segs[i].start-segs[i-1].end<=SESSION_GAP_MIN*60000){if(segs[i-1].start<gStart)gStart=segs[i-1].start;}
-    else break;
+  let earliest=null;
+  for(const l of logs){
+    if(l.date!==today||!l.created_at)continue;
+    const start=new Date(l.created_at).getTime()-(l.minutes||0)*60000;
+    if(earliest===null||start<earliest)earliest=start;
   }
-  return {minutes:Math.max(0,Math.round((now-gStart)/60000))};
+  const k=sessionKey();
+  const stored=localStorage.getItem(k);
+  let startMs=stored?Number(stored):null;
+  if(earliest!==null&&(startMs===null||earliest<startMs)){
+    startMs=earliest;
+    localStorage.setItem(k,String(startMs));
+  }
+  if(startMs===null)return null;
+  return {minutes:Math.max(0,Math.round((Date.now()-startMs)/60000))};
 }
 function renderSessionBar(){
   const bar=$("session-bar");if(!bar)return;
@@ -462,7 +464,7 @@ function renderExGrid(){
     const b=document.createElement("button");
     b.className="ex-btn"+(selItem===i.id?" selected":"");
     b.textContent=i.name;
-    b.onclick=()=>{if(isTimerRunning()){toast("計測中だよ。■終了してから切り替えてね");return;}selItem=i.id;renderExGrid();$("record-panel").style.display="block";
+    b.onclick=()=>{if(isTimerRunning()){toast("計測中だよ。■終了してから切り替えてね");return;}selItem=i.id;markSessionStart();renderExGrid();$("record-panel").style.display="block";
       const tipCard=$("tip-card");
       if(i.tip){$("tip-text").textContent=i.tip;tipCard.style.display="block";}else{tipCard.style.display="none";}
       renderPastMemos(i.name);
@@ -495,6 +497,7 @@ function updateSaveBtn(){
 
 async function saveEntry(minutes){
   if(selCat===null||selItem===null||!minutes)return false;
+  markSessionStart();
   const catName=cats.find(c=>c.id===selCat)?.name||"";
   const itemName=items.find(i=>i.id===selItem)?.name||"";
   const {error}=await db.from(TABLE).insert({type:"log",date:todayStr(),data:{cat:catName,item:itemName,minutes,memo:$("memo").value.trim()}});
@@ -541,6 +544,7 @@ async function toggleTimer(){
     if(selCat===null||selItem===null){toast("先に種目を選んでね");return;}
     timerStart=Date.now();
     localStorage.setItem(TIMER_KEY,JSON.stringify({catId:selCat,itemId:selItem,startMs:timerStart}));
+    markSessionStart();
     setTimerUI(true);tickTimer();
     timerInterval=setInterval(tickTimer,1000);
   }else{
