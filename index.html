@@ -216,10 +216,17 @@ select.form-input{appearance:none;-webkit-appearance:none;cursor:pointer;}
       </div>
       <div id="hist-ins" style="display:none;">
         <div class="card">
-          <div class="card-label">🔍 種目で絞る</div>
+          <div class="card-label">⏱ 期間</div>
+          <div class="cat-scroll" id="ins-range-tabs" style="margin-bottom:6px;">
+            <button class="cat-tab" data-range="30" onclick="setInsightRange(30)">30日</button>
+            <button class="cat-tab active" data-range="90" onclick="setInsightRange(90)">90日</button>
+            <button class="cat-tab" data-range="0" onclick="setInsightRange(0)">全期間</button>
+          </div>
+          <div class="card-label" style="margin-top:10px;">🔍 種目で絞る</div>
           <select class="form-input" id="ins-filter" style="margin-bottom:0;" onchange="renderInsights()"></select>
         </div>
         <div id="ins-list"></div>
+        <button class="ai-copy-btn" onclick="copyInsightsForAI()" style="margin-top:12px;"><span>📊</span> 気づきをAIに分析させる（コピー）</button>
       </div>
       <div id="hist-cal">
       <div class="card" style="padding:16px;">
@@ -376,7 +383,7 @@ async function loadAll(){
   if(error){toast("読込エラー");console.error(error);return;}
   cats=data.filter(r=>r.type==="category").map(r=>({id:r.id,name:r.data.name,order:r.data.order??0}));
   items=data.filter(r=>r.type==="item").map(r=>({id:r.id,cat:r.data.cat,name:r.data.name,tip:r.data.tip||""}));
-  logs=data.filter(r=>r.type==="log").map(r=>({id:r.id,date:r.date,cat:r.data.cat,item:r.data.item,minutes:r.data.minutes,memo:r.data.memo||""}));
+  logs=data.filter(r=>r.type==="log").map(r=>({id:r.id,date:r.date,created_at:r.created_at,cat:r.data.cat,item:r.data.item,minutes:r.data.minutes,memo:r.data.memo||""}));
   routines=data.filter(r=>r.type==="routine").map(r=>({id:r.id,name:r.data.name,items:r.data.items||[],note:r.data.note||""}));
   cats.sort((a,b)=>a.order-b.order||a.id-b.id);
   if(cats.length===0){await seedDefaults();return;}
@@ -681,14 +688,30 @@ function setHistTab(t){
 }
 
 // ---------- 履歴: 気づき一覧 ----------
+let insightRange=90; // 30 / 90 / 0(全期間)
+function setInsightRange(days){
+  insightRange=days;
+  document.querySelectorAll("#ins-range-tabs .cat-tab").forEach(b=>b.classList.toggle("active",Number(b.dataset.range)===days));
+  renderInsights();
+}
+function filterInsightLogs(){
+  const cur=$("ins-filter")?.value||"";
+  let list=logs.filter(l=>l.memo&&(!cur||l.item===cur));
+  if(insightRange>0){
+    const cutoff=new Date();cutoff.setDate(cutoff.getDate()-insightRange);
+    const cutoffStr=cutoff.toISOString().slice(0,10);
+    list=list.filter(l=>l.date>=cutoffStr);
+  }
+  return list.sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id);
+}
 function renderInsights(){
   const sel=$("ins-filter");const cur=sel.value;
   const itemsWithMemo=Array.from(new Set(logs.filter(l=>l.memo).map(l=>l.item)));
   sel.innerHTML='<option value="">すべての種目</option>'+itemsWithMemo.sort().map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join("");
   sel.value=cur;
-  const filtered=logs.filter(l=>l.memo&&(!cur||l.item===cur)).sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id);
+  const filtered=filterInsightLogs();
   const box=$("ins-list");
-  if(!filtered.length){box.innerHTML='<div class="empty-state">気づきメモが付いた記録はまだないよ</div>';return;}
+  if(!filtered.length){box.innerHTML=`<div class="empty-state">${insightRange>0?`直近${insightRange}日の`:""}気づきメモはまだないよ</div>`;return;}
   box.innerHTML=filtered.map(l=>`<div class="card" style="padding:12px 14px;"><div style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace;">${esc(l.date)} ・ <span style="color:var(--accent);">${l.minutes}分</span> ・ ${esc(l.cat)} / ${esc(l.item)}</div><div style="margin-top:6px;font-size:14px;line-height:1.5;">${esc(l.memo)}</div></div>`).join("");
 }
 
@@ -754,6 +777,101 @@ function copyMonthForAI(){
   const txt=`【ビリヤード練習 月次記録】${calYear}年${calMonth+1}月\n練習日数 ${Object.keys(byDate).length}日 / 合計 ${list.length}件 / ${min}分\n部位別: ${catSum}\n\n${detail}\n\n今月の練習量・バランス・継続性をビリヤードコーチの視点で総評し、来月の重点課題を提案してください。`;
   copyText(txt);
 }
+// 気づきメモをAIに分析させる用テキストを生成してコピー
+function copyInsightsForAI(){
+  const list=filterInsightLogs();
+  if(!list.length){toast("対象の気づきがないよ");return;}
+  const WD=["日","月","火","水","木","金","土"];
+  const fmt=l=>{
+    let stamp=l.date+"(?) --:--";
+    if(l.created_at){
+      const d=new Date(l.created_at);
+      const hh=String(d.getHours()).padStart(2,"0");
+      const mm=String(d.getMinutes()).padStart(2,"0");
+      stamp=`${l.date}(${WD[d.getDay()]}) ${hh}:${mm}`;
+    }else{
+      const [y,m,dd]=l.date.split("-").map(Number);
+      stamp=`${l.date}(${WD[new Date(y,m-1,dd).getDay()]}) --:--`;
+    }
+    return `${stamp} / ${l.minutes}分 / ${l.cat} / ${l.item}\n　→ ${l.memo}`;
+  };
+  const periodLabel=insightRange>0?`直近${insightRange}日`:"全期間";
+  const totalMin=list.reduce((s,l)=>s+(l.minutes||0),0);
+  const dates=Array.from(new Set(list.map(l=>l.date))).sort();
+  const dateRange=dates.length?`${dates[0]} 〜 ${dates[dates.length-1]}`:"-";
+  const cur=$("ins-filter")?.value||"";
+  const filterNote=cur?`（種目フィルタ: ${cur}）`:"";
+  const body=list.slice().sort((a,b)=>a.date.localeCompare(b.date)||a.id-b.id).map(fmt).join("\n\n");
+
+  const prompt=`あなたはビリヤード（プール）の上級コーチであり、データを論理的に読み解く分析家です。
+以下は私が日々の練習で書き残している「気づきメモ」のログです。
+各エントリは [日付(曜日) 時刻 / 練習分 / 大項目 / 小項目] と本文で構成されています。
+時刻が "--:--" のものは時刻データなしの古い記録です。
+
+【お願い】
+私が次の練習で本当に効く打ち手を見つけたいので、当たり障りのない一般論ではなく、
+このログに固有のパターンを根拠付きで指摘してください。
+結論ファースト、論理的、具体的。慰めや精神論は不要です。
+
+【出力フォーマット】（この順で、見出し付きで）
+
+■ 結論（3行以内）
+　最も投資すべき改善テーマと、その根拠を一行ずつ。
+
+■ 定量サマリ
+　・分析期間と総練習時間
+　・最も時間を割いた種目TOP3
+　・気づきの記述量が多い種目TOP3（=本人が悩んでいる場所の仮説）
+
+■ 課題マップ
+　繰り返し出てくる課題テーマを3〜5個に集約。表形式で：
+　| 課題 | 頻出度 | 分類(技術/フォーム/メンタル/戦術) | 関連種目 | 根拠メモの一例 |
+
+■ 強み・改善トレンド
+　・継続的に意識できていること
+　・改善が見えるテーマ
+　・繰り返し書いているのに進展がないテーマ（=ボトルネック候補）
+
+■ 時間帯・曜日パターン（補足）
+　日時データから読み取れる範囲で、以下を簡潔に：
+　・調子が良さそうな時間帯／曜日／月の時期
+　・調子を崩しやすそうな条件
+　・データが少なくて判断できない場合は「判断不能」と書く
+
+■ 思考パターンの読み解き
+　メモの言語化の癖から見える、本人の思考傾向（3つまで）。
+　例：結果より原因に向かう／フォーム重視／メンタル要因を言語化しがち、など。
+
+■ 次の一手（優先順 2〜3個）
+　各テーマについて：
+　1. テーマ名
+　2. なぜ今これか（根拠）
+　3. 具体的な練習ドリル（手球・的球の配置／距離／本数まで指定）
+　4. うまくいったか測る基準（KPI）
+
+■ 盲点の指摘
+　メモに書かれていないが、書き方や偏りから推測される
+　「本人が見落としていそうな」テーマを1〜2個。
+
+【守ってほしいこと】
+- 不確かなことを断定しない。根拠（ログの記述）を引用する
+- 「がんばりましょう」「継続が大事」系のまとめは禁止
+- 練習ドリルは机上で終わらず、ジムや球場で再現できる粒度で書く
+
+【補足】
+メモ冒頭の【絶好調 / 好調 / 普通 / 不調】は本人の主観的コンディション申告です。
+課題マップやパターン分析の参考にしてください。
+
+【ログデータ】
+分析対象: ${periodLabel} ${filterNote}
+日付レンジ: ${dateRange}
+件数: ${list.length}件 / 合計練習時間: ${totalMin}分
+
+${body}
+`;
+  copyText(prompt);
+}
+
 function copyText(txt){
   navigator.clipboard.writeText(txt).then(()=>toast("コピーしたよ📋")).catch(()=>{
     const ta=document.createElement("textarea");ta.value=txt;document.body.appendChild(ta);ta.select();document.execCommand("copy");ta.remove();toast("コピーしたよ📋");
