@@ -1,6 +1,6 @@
 {
-  "name": "練習ログ",
-  "short_name": "練習ログ",
+  "name": "Cue Note",
+  "short_name": "Cue Note",
   "description": "ビリヤード練習を記録するアプリ",
   "lang": "ja",
   "start_url": "./",
