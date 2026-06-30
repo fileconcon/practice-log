@@ -427,33 +427,30 @@ async function loadAll(){
   renderSessionBar();
 }
 
-// ===== 練習セッション経過バー：今日「最初に触った時刻」からの壁時計合計 =====
+// ===== 練習セッション経過バー：60分のブランクで自動終了 =====
 const SESSION_TARGET_MIN=90;   // バー満タン＝90分
 const SESSION_WARN_MIN=60;     // 60分でオレンジ
+const SESSION_GAP_MIN=60;      // 60分以上記録なし → セッション終了扱い
 let sessionBarInterval=null;
-function sessionKey(){return "poollog_session_start_"+todayStr();}
-function markSessionStart(){
-  const k=sessionKey();
-  if(!localStorage.getItem(k))localStorage.setItem(k,String(Date.now()));
-  renderSessionBar();
-}
+function markSessionStart(){renderSessionBar();}
 function getCurrentSession(){
   const today=todayStr();
-  let earliest=null;
-  for(const l of logs){
-    if(l.date!==today||!l.created_at)continue;
-    const start=new Date(l.created_at).getTime()-(l.minutes||0)*60000;
-    if(earliest===null||start<earliest)earliest=start;
+  const todays=logs.filter(l=>l.date===today&&l.created_at)
+    .map(l=>{const end=new Date(l.created_at).getTime();return {start:end-(l.minutes||0)*60000,end};})
+    .sort((a,b)=>a.start-b.start);
+  if(!todays.length)return null;
+  const GAP=SESSION_GAP_MIN*60000;
+  // 直近セッション抽出：前活動終了→次活動開始 の隙間が GAP 以下なら同一セッション
+  let sessStart=todays[0].start;
+  let sessLastEnd=todays[0].end;
+  for(let i=1;i<todays.length;i++){
+    if(todays[i].start-sessLastEnd>GAP)sessStart=todays[i].start;
+    if(todays[i].end>sessLastEnd)sessLastEnd=todays[i].end;
   }
-  const k=sessionKey();
-  const stored=localStorage.getItem(k);
-  let startMs=stored?Number(stored):null;
-  if(earliest!==null&&(startMs===null||earliest<startMs)){
-    startMs=earliest;
-    localStorage.setItem(k,String(startMs));
-  }
-  if(startMs===null)return null;
-  return {minutes:Math.max(0,Math.round((Date.now()-startMs)/60000))};
+  const now=Date.now();
+  const inactive=(now-sessLastEnd)>GAP;
+  const endpoint=inactive?sessLastEnd:now;
+  return {minutes:Math.max(0,Math.round((endpoint-sessStart)/60000)),inactive};
 }
 function renderSessionBar(){
   const bar=$("session-bar");if(!bar)return;
@@ -473,7 +470,12 @@ function renderSessionBar(){
   const clip=$("sb-clip");clip.style.width=pct+"%";
   const track=clip.parentElement;
   clip.firstElementChild.style.width=track.clientWidth+"px";
-  if(!sessionBarInterval)sessionBarInterval=setInterval(renderSessionBar,30000);
+  // 終了済みなら定期更新を止める（次の記録が入った時に呼ばれて再評価される）
+  if(s.inactive){
+    if(sessionBarInterval){clearInterval(sessionBarInterval);sessionBarInterval=null;}
+  }else if(!sessionBarInterval){
+    sessionBarInterval=setInterval(renderSessionBar,30000);
+  }
 }
 
 async function seedDefaults(){
