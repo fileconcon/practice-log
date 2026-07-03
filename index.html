@@ -145,6 +145,18 @@ select.form-input{appearance:none;-webkit-appearance:none;cursor:pointer;}
         <div class="info-box"><div class="k">今日の合計</div><div class="v" id="today-min">0分</div></div>
       </div>
 
+      <div class="card" id="task-card" style="border-left-color:var(--accent3);">
+        <div class="section-row">
+          <span class="card-label" style="margin-bottom:0;">🎯 今日の課題</span>
+          <span class="badge" id="task-badge">0件</span>
+        </div>
+        <div id="task-list"></div>
+        <div class="custom-row" style="margin-top:8px;">
+          <input class="form-input" id="new-task" type="text" placeholder="次回やることを追加" style="margin-bottom:0;">
+          <button class="mini-btn" onclick="addTaskManual()">追加</button>
+        </div>
+      </div>
+
       <select class="form-input" id="routine-pick" style="margin-bottom:11px;" onchange="startRoutine()">
         <option value="">🔁 ルーティンを選んで開始</option>
       </select>
@@ -185,6 +197,19 @@ select.form-input{appearance:none;-webkit-appearance:none;cursor:pointer;}
             <button class="mini-btn" onclick="setCustomMin()">OK</button>
           </div>
         </div>
+        <div class="card" id="count-card">
+          <div class="card-label">🎯 成功カウント（任意）</div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input type="number" class="form-input" id="cnt-ok" placeholder="成功数" min="0" style="margin-bottom:0;">
+            <span style="color:var(--text3);font-weight:700;">/</span>
+            <input type="number" class="form-input" id="cnt-att" placeholder="試技数" min="1" style="margin-bottom:0;">
+            <span style="color:var(--text3);font-size:12px;flex-shrink:0;">球</span>
+          </div>
+          <div id="score-row" style="display:none;margin-top:12px;">
+            <div class="card-label">🎳 ボーラードスコア（任意）</div>
+            <input type="number" class="form-input" id="score-input" placeholder="0〜300" min="0" max="300" style="margin-bottom:0;">
+          </div>
+        </div>
         <div class="card">
           <div class="card-label">今日のコンディション</div>
           <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px;">
@@ -213,6 +238,37 @@ select.form-input{appearance:none;-webkit-appearance:none;cursor:pointer;}
       <div style="display:flex;gap:6px;margin-bottom:10px;">
         <button class="cat-tab active" id="htab-cal" onclick="setHistTab('cal')" style="flex:1;text-align:center;">📅 カレンダー</button>
         <button class="cat-tab" id="htab-ins" onclick="setHistTab('ins')" style="flex:1;text-align:center;">📝 気づき</button>
+        <button class="cat-tab" id="htab-prog" onclick="setHistTab('prog')" style="flex:1;text-align:center;">📊 上達</button>
+      </div>
+      <div id="hist-prog" style="display:none;">
+        <div class="card">
+          <div class="card-label">⏱ 期間</div>
+          <div class="cat-scroll" id="prog-range-tabs" style="margin-bottom:0;">
+            <button class="cat-tab" data-range="30" onclick="setProgRange(30)">30日</button>
+            <button class="cat-tab active" data-range="90" onclick="setProgRange(90)">90日</button>
+            <button class="cat-tab" data-range="0" onclick="setProgRange(0)">全期間</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-label">🎯 成功率の推移</div>
+          <select class="form-input" id="rate-item" onchange="renderProgress()"></select>
+          <div id="rate-chart"></div>
+        </div>
+        <div class="card" id="score-card" style="display:none;">
+          <div class="section-row">
+            <span class="card-label" style="margin-bottom:0;">🎳 ボーラードスコア推移</span>
+            <span class="badge" id="score-best"></span>
+          </div>
+          <div id="score-chart"></div>
+        </div>
+        <div class="card">
+          <div class="card-label">⚖️ 練習バランス（大項目別）</div>
+          <div id="balance-bars"></div>
+        </div>
+        <div class="card" id="neglect-card" style="display:none;border-left-color:var(--accent2);">
+          <div class="card-label">⚠️ しばらく触っていない種目</div>
+          <div id="neglect-list"></div>
+        </div>
       </div>
       <div id="hist-ins" style="display:none;">
         <div class="card">
@@ -374,7 +430,7 @@ const TIPS={
   "試合":"プレショットルーティンを崩さず、目の前の1球だけに集中。前のミスを引きずらないメンタル管理を。",
 };
 
-let cats=[],items=[],logs=[],routines=[];
+let cats=[],items=[],logs=[],routines=[],tasks=[];
 let selCat=null,selItem=null,selMin=null;
 let calYear,calMonth,selDay=null;
 let activeRoutine=null,routineDraft=[];
@@ -410,8 +466,9 @@ async function loadAll(){
   if(error){toast("読込エラー");console.error(error);return;}
   cats=data.filter(r=>r.type==="category").map(r=>({id:r.id,name:r.data.name,order:r.data.order??0}));
   items=data.filter(r=>r.type==="item").map(r=>({id:r.id,cat:r.data.cat,name:r.data.name,tip:r.data.tip||""}));
-  logs=data.filter(r=>r.type==="log").map(r=>({id:r.id,date:r.date,created_at:r.created_at,cat:r.data.cat,item:r.data.item,minutes:r.data.minutes,memo:r.data.memo||""}));
+  logs=data.filter(r=>r.type==="log").map(r=>({id:r.id,date:r.date,created_at:r.created_at,cat:r.data.cat,item:r.data.item,minutes:r.data.minutes,memo:r.data.memo||"",att:r.data.att,ok:r.data.ok,score:r.data.score}));
   routines=data.filter(r=>r.type==="routine").map(r=>({id:r.id,name:r.data.name,items:r.data.items||[],note:r.data.note||""}));
+  tasks=data.filter(r=>r.type==="task").map(r=>({id:r.id,date:r.date,text:r.data.text||"",item:r.data.item||"",done:!!r.data.done,doneDate:r.data.doneDate||null}));
   cats.sort((a,b)=>a.order-b.order||a.id-b.id);
   if(cats.length===0){await seedDefaults();return;}
   // 既定種目でtip未設定のものを自動補填（初回のみ走る）
@@ -422,7 +479,7 @@ async function loadAll(){
       await db.from(TABLE).update({data:{cat:i.cat,name:i.name,tip}}).eq("id",i.id);
     }));
   }
-  renderCatTabs();renderMinChips();renderTodaySummary();renderRoutinePicker();
+  renderCatTabs();renderMinChips();renderTodaySummary();renderRoutinePicker();renderTasks();
   restoreTimer();
   renderSessionBar();
 }
@@ -514,7 +571,7 @@ function renderExGrid(){
     b.onclick=()=>{if(isTimerRunning()){toast("計測中だよ。■終了してから切り替えてね");return;}selItem=i.id;markSessionStart();renderExGrid();$("record-panel").style.display="block";
       const tipCard=$("tip-card");
       if(i.tip){$("tip-text").textContent=i.tip;tipCard.style.display="block";}else{tipCard.style.display="none";}
-      renderPastMemos(i.name);
+      renderPastMemos(i.name);updateScoreRow();
       updateSaveBtn();$("record-panel").scrollIntoView({behavior:"smooth",block:"nearest"});};
     box.appendChild(b);
   });
@@ -555,10 +612,29 @@ async function saveEntry(minutes){
   markSessionStart();
   const catName=cats.find(c=>c.id===selCat)?.name||"";
   const itemName=items.find(i=>i.id===selItem)?.name||"";
-  const {error}=await db.from(TABLE).insert({type:"log",date:todayStr(),data:{cat:catName,item:itemName,minutes,memo:$("memo").value.trim()}});
+  const data={cat:catName,item:itemName,minutes,memo:$("memo").value.trim()};
+  // 成功カウント（任意・両方入力時のみ有効）
+  const okV=$("cnt-ok").value.trim(),attV=$("cnt-att").value.trim();
+  if(okV!==""||attV!==""){
+    const ok=Number(okV),att=Number(attV);
+    if(okV===""||attV===""||!Number.isFinite(ok)||!Number.isFinite(att)||att<1||ok<0||ok>att){
+      toast("成功カウントは「成功≦試技」で両方入れてね");return false;
+    }
+    data.att=att;data.ok=ok;
+  }
+  // ボーラードスコア（任意）
+  if($("score-row").style.display!=="none"){
+    const scV=$("score-input").value.trim();
+    if(scV!==""){
+      const sc=Number(scV);
+      if(!Number.isFinite(sc)||sc<0||sc>300){toast("スコアは0〜300だよ");return false;}
+      data.score=sc;
+    }
+  }
+  const {error}=await db.from(TABLE).insert({type:"log",date:todayStr(),data});
   if(error){toast("保存エラー😣");return false;}
   floatText(`+${minutes}分 🎱`);toast("記録したよ！👏");
-  $("memo").value="";
+  $("memo").value="";$("cnt-ok").value="";$("cnt-att").value="";$("score-input").value="";
   await loadAll();
   if(activeRoutine)setTimeout(advanceRoutine,250);
   return true;
@@ -624,7 +700,7 @@ function restoreTimer(){
   const it=items.find(i=>i.id===t.itemId);
   $("record-panel").style.display="block";
   if(it.tip){$("tip-text").textContent=it.tip;$("tip-card").style.display="block";}
-  renderPastMemos(it.name);
+  renderPastMemos(it.name);updateScoreRow();
   setTimerUI(true);tickTimer();
   timerInterval=setInterval(tickTimer,1000);
 }
@@ -643,8 +719,10 @@ function renderTodaySummary(){
 
 function logRow(l){
   const row=document.createElement("div");row.className="log-row";
+  const cnt=l.att!=null?`<span class="log-min" style="color:var(--accent3);">${l.ok}/${l.att}球</span>`:"";
+  const sc=l.score!=null?`<span class="log-min">🎳${l.score}</span>`:"";
   row.innerHTML=`<div class="log-main">
-    <div class="log-title"><span class="log-min">${l.minutes}分</span>${esc(l.cat)} / ${esc(l.item)}</div>
+    <div class="log-title"><span class="log-min">${l.minutes}分</span>${cnt}${sc}${esc(l.cat)} / ${esc(l.item)}</div>
     ${l.memo?`<div class="log-sub">📝 ${esc(l.memo)}</div>`:""}
   </div>`;
   const del=document.createElement("button");del.className="del-btn";del.textContent="削除";
@@ -678,7 +756,7 @@ function gotoRoutineStep(pos){
   renderCatTabs();
   $("record-panel").style.display="block";
   if(it.tip){$("tip-text").textContent=it.tip;$("tip-card").style.display="block";}else{$("tip-card").style.display="none";}
-  renderPastMemos(it.name);
+  renderPastMemos(it.name);updateScoreRow();
   updateSaveBtn();
   $("routine-progress-text").textContent=`${activeRoutine.name}（${pos+1}/${activeRoutine.items.length}）→ ${it.name}`;
   $("routine-progress").scrollIntoView({behavior:"smooth",block:"nearest"});
@@ -697,6 +775,49 @@ function cancelRoutine(){
   activeRoutine=null;$("routine-progress").style.display="none";$("routine-pick").value="";
 }
 
+// ---------- ボーラードスコア欄の表示切替 ----------
+function updateScoreRow(){
+  const it=items.find(i=>i.id===selItem);
+  $("score-row").style.display=(it&&it.name==="ボーラード")?"block":"none";
+}
+
+// ---------- 課題カード ----------
+async function addTask(text,item){
+  text=(text||"").trim();if(!text){toast("課題の内容を入れてね");return;}
+  await db.from(TABLE).insert({type:"task",date:todayStr(),data:{text,item:item||"",done:false}});
+  await loadAll();toast("課題にしたよ🎯");
+}
+function addTaskManual(){const inp=$("new-task");addTask(inp.value,"");inp.value="";}
+function taskFromLog(id){
+  const l=logs.find(x=>x.id===id);if(!l||!l.memo)return;
+  const text=l.memo.replace(/^【[^】]+】\s*/,"");
+  addTask(text,l.item);
+}
+async function toggleTask(id){
+  const t=tasks.find(x=>x.id===id);if(!t)return;
+  const done=!t.done;
+  await db.from(TABLE).update({data:{text:t.text,item:t.item,done,doneDate:done?todayStr():null}}).eq("id",id);
+  await loadAll();
+  if(done)floatText("課題クリア！🎯");
+}
+async function deleteTask(id){
+  if(!confirm("この課題を削除する？"))return;
+  await db.from(TABLE).delete().eq("id",id);await loadAll();
+}
+function renderTasks(){
+  const box=$("task-list");if(!box)return;
+  const open=tasks.filter(t=>!t.done);
+  const doneToday=tasks.filter(t=>t.done&&t.doneDate===todayStr());
+  $("task-badge").textContent=open.length+"件";
+  const rows=[...open,...doneToday];
+  if(!rows.length){box.innerHTML='<div class="empty-state" style="padding:6px 0;">未消化の課題はないよ。気づきタブの「🎯 課題に」からも作れるよ</div>';return;}
+  box.innerHTML=rows.map(t=>`<div style="display:flex;align-items:flex-start;gap:9px;padding:7px 0;border-bottom:1px solid var(--border);">
+    <input type="checkbox" ${t.done?"checked":""} onchange="toggleTask(${t.id})" style="margin-top:3px;width:17px;height:17px;accent-color:var(--accent);flex-shrink:0;">
+    <div style="flex:1;font-size:13px;line-height:1.5;${t.done?"text-decoration:line-through;color:var(--text3);":""}">${esc(t.text)}${t.item?` <span style="font-size:11px;color:var(--accent3);">#${esc(t.item)}</span>`:""}</div>
+    <button class="del-btn" onclick="deleteTask(${t.id})">✕</button>
+  </div>`).join("");
+}
+
 // ---------- 前回の気づき ----------
 function renderPastMemos(itemName){
   const card=$("past-card"),list=$("past-list");
@@ -711,9 +832,12 @@ function renderPastMemos(itemName){
 function setHistTab(t){
   $("hist-cal").style.display=t==="cal"?"block":"none";
   $("hist-ins").style.display=t==="ins"?"block":"none";
+  $("hist-prog").style.display=t==="prog"?"block":"none";
   $("htab-cal").classList.toggle("active",t==="cal");
   $("htab-ins").classList.toggle("active",t==="ins");
+  $("htab-prog").classList.toggle("active",t==="prog");
   if(t==="ins")renderInsights();
+  if(t==="prog")renderProgress();
 }
 
 // ---------- 履歴: 気づき一覧 ----------
@@ -741,7 +865,100 @@ function renderInsights(){
   const filtered=filterInsightLogs();
   const box=$("ins-list");
   if(!filtered.length){box.innerHTML=`<div class="empty-state">${insightRange>0?`直近${insightRange}日の`:""}気づきメモはまだないよ</div>`;return;}
-  box.innerHTML=filtered.map(l=>`<div class="card" style="padding:12px 14px;"><div style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace;">${esc(l.date)} ・ <span style="color:var(--accent);">${l.minutes}分</span> ・ ${esc(l.cat)} / ${esc(l.item)}</div><div style="margin-top:6px;font-size:14px;line-height:1.5;">${esc(l.memo)}</div></div>`).join("");
+  box.innerHTML=filtered.map(l=>`<div class="card" style="padding:12px 14px;"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;"><div style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace;">${esc(l.date)} ・ <span style="color:var(--accent);">${l.minutes}分</span> ・ ${esc(l.cat)} / ${esc(l.item)}</div><button class="mini-btn" onclick="taskFromLog(${l.id})" style="flex-shrink:0;font-size:11px;padding:3px 9px;">🎯 課題に</button></div><div style="margin-top:6px;font-size:14px;line-height:1.5;">${esc(l.memo)}</div></div>`).join("");
+}
+
+// ---------- 履歴: 上達タブ ----------
+let progRange=90; // 30 / 90 / 0(全期間)
+function setProgRange(days){
+  progRange=days;
+  document.querySelectorAll("#prog-range-tabs .cat-tab").forEach(b=>b.classList.toggle("active",Number(b.dataset.range)===days));
+  renderProgress();
+}
+function progFilter(list){
+  if(progRange<=0)return list;
+  const cutoff=new Date();cutoff.setDate(cutoff.getDate()-progRange);
+  const cs=cutoff.toISOString().slice(0,10);
+  return list.filter(l=>l.date>=cs);
+}
+// シンプルなSVG折れ線グラフ生成（成功率・スコアで共用）
+function svgLine(points,opts){
+  const o=opts||{};
+  const W=320,H=o.height||150,PL=36,PR=10,PT=12,PB=22;
+  if(!points.length)return '<div class="empty-state">データがまだないよ</div>';
+  const ys=points.map(p=>p.y);
+  let yMin=o.yMin!=null?o.yMin:Math.min(...ys),yMax=o.yMax!=null?o.yMax:Math.max(...ys);
+  if(yMax===yMin)yMax=yMin+1;
+  const iw=W-PL-PR,ih=H-PT-PB;
+  const px=i=>points.length===1?PL+iw/2:PL+iw*i/(points.length-1);
+  const py=v=>PT+ih*(1-(v-yMin)/(yMax-yMin));
+  const path=points.map((p,i)=>`${i===0?"M":"L"}${px(i).toFixed(1)},${py(p.y).toFixed(1)}`).join(" ");
+  const dots=points.map((p,i)=>`<circle cx="${px(i).toFixed(1)}" cy="${py(p.y).toFixed(1)}" r="3.5" fill="var(--accent)"/>`).join("");
+  const gl=v=>`<line x1="${PL}" y1="${py(v).toFixed(1)}" x2="${W-PR}" y2="${py(v).toFixed(1)}" stroke="var(--border)" stroke-width="1"/><text x="${PL-5}" y="${(py(v)+3.5).toFixed(1)}" text-anchor="end" font-size="9" fill="var(--text3)" font-family="DM Mono,monospace">${Math.round(v)}${o.unit||""}</text>`;
+  const xl=(i,anchor)=>`<text x="${px(i).toFixed(1)}" y="${H-5}" text-anchor="${anchor}" font-size="9" fill="var(--text3)" font-family="DM Mono,monospace">${points[i].x}</text>`;
+  const xlabels=points.length===1?xl(0,"middle"):xl(0,"start")+xl(points.length-1,"end");
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;">${gl(yMax)}${gl((yMax+yMin)/2)}${gl(yMin)}<path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2"/>${dots}${xlabels}</svg>`;
+}
+function renderProgress(){
+  // --- 成功率の推移 ---
+  const rateLogs=progFilter(logs.filter(l=>l.att!=null&&l.att>0));
+  const rateItems=Array.from(new Set(rateLogs.map(l=>l.item))).sort();
+  const sel=$("rate-item");const cur=sel.value;
+  if(rateItems.length){
+    sel.innerHTML=rateItems.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join("");
+    sel.value=rateItems.includes(cur)?cur:rateItems[0];
+    const target=sel.value;
+    const byDate={};
+    rateLogs.filter(l=>l.item===target).forEach(l=>{const b=(byDate[l.date]=byDate[l.date]||{ok:0,att:0});b.ok+=l.ok||0;b.att+=l.att;});
+    const dates=Object.keys(byDate).sort();
+    const points=dates.map(d=>({x:d.slice(5).replace("-","/"),y:Math.round(byDate[d].ok/byDate[d].att*100)}));
+    const latest=byDate[dates[dates.length-1]];
+    $("rate-chart").innerHTML=svgLine(points,{yMin:0,yMax:100,unit:"%"})
+      +`<div style="font-size:11px;color:var(--text3);margin-top:6px;font-family:'DM Mono',monospace;">直近: ${latest.ok}/${latest.att}球 (${Math.round(latest.ok/latest.att*100)}%) ・ ${points.length}日分</div>`;
+  }else{
+    sel.innerHTML='<option value="">（まだデータなし）</option>';
+    $("rate-chart").innerHTML='<div class="empty-state">記録時に「🎯 成功カウント」を入れると<br>ここに種目別の推移が出るよ</div>';
+  }
+  // --- ボーラードスコア推移 ---
+  const scoreLogs=progFilter(logs.filter(l=>l.score!=null)).sort((a,b)=>a.date.localeCompare(b.date)||a.id-b.id);
+  if(scoreLogs.length){
+    $("score-card").style.display="block";
+    const best=Math.max(...logs.filter(l=>l.score!=null).map(l=>l.score)); // 自己ベストは全期間
+    const recent=scoreLogs.slice(-5);
+    const avg=Math.round(recent.reduce((s,l)=>s+l.score,0)/recent.length);
+    $("score-best").textContent=`ベスト ${best} ・ 直近平均 ${avg}`;
+    const points=scoreLogs.map(l=>({x:l.date.slice(5).replace("-","/"),y:l.score}));
+    $("score-chart").innerHTML=svgLine(points,{yMin:0,yMax:Math.max(100,Math.ceil(best/50)*50)});
+  }else{
+    $("score-card").style.display="none";
+  }
+  // --- 練習バランス（大項目別） ---
+  const bal=progFilter(logs);
+  const byCat={};bal.forEach(l=>{byCat[l.cat]=(byCat[l.cat]||0)+(l.minutes||0);});
+  const total=Object.values(byCat).reduce((s,v)=>s+v,0);
+  const bbox=$("balance-bars");
+  if(!total){
+    bbox.innerHTML='<div class="empty-state">この期間の記録がないよ</div>';
+  }else{
+    bbox.innerHTML=Object.entries(byCat).sort((a,b)=>b[1]-a[1]).map(([k,v])=>{
+      const pct=Math.round(v/total*100);
+      return `<div style="margin-bottom:9px;"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;"><span>${esc(k)}</span><span style="color:var(--text3);font-family:'DM Mono',monospace;">${v}分 (${pct}%)</span></div><div style="height:8px;background:var(--surface2);border-radius:4px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:var(--accent);border-radius:4px;"></div></div></div>`;
+    }).join("");
+  }
+  // --- 放置種目警告（30日超・全期間ベース） ---
+  const NEGLECT_DAYS=30;
+  const lastByItem={};
+  logs.forEach(l=>{if(!lastByItem[l.item]||l.date>lastByItem[l.item])lastByItem[l.item]=l.date;});
+  const todayMs=new Date(todayStr()).getTime();
+  const neglected=items.filter(i=>lastByItem[i.name])
+    .map(i=>({name:i.name,days:Math.round((todayMs-new Date(lastByItem[i.name]).getTime())/86400000)}))
+    .filter(x=>x.days>NEGLECT_DAYS).sort((a,b)=>b.days-a.days);
+  if(neglected.length){
+    $("neglect-card").style.display="block";
+    $("neglect-list").innerHTML=neglected.map(x=>`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;"><span>${esc(x.name)}</span><span style="color:var(--accent2);font-family:'DM Mono',monospace;">${x.days}日前</span></div>`).join("");
+  }else{
+    $("neglect-card").style.display="none";
+  }
 }
 
 // ---------- 履歴（カレンダー） ----------
@@ -786,7 +1003,11 @@ function renderDayDetail(ds,dayLogs){
 
 // ---------- AIコピー ----------
 function logsToText(list){
-  return list.map(l=>`・${l.cat} / ${l.item}（${l.minutes}分）${l.memo?" — "+l.memo:""}`).join("\n");
+  return list.map(l=>{
+    const cnt=l.att!=null?`〔${l.ok}/${l.att}球 ${Math.round((l.ok||0)/l.att*100)}%〕`:"";
+    const sc=l.score!=null?`〔スコア:${l.score}〕`:"";
+    return `・${l.cat} / ${l.item}（${l.minutes}分）${cnt}${sc}${l.memo?" — "+l.memo:""}`;
+  }).join("\n");
 }
 function copyDayForAI(){
   if(!selDay)return;
@@ -822,7 +1043,9 @@ function copyInsightsForAI(){
       const [y,m,dd]=l.date.split("-").map(Number);
       stamp=`${l.date}(${WD[new Date(y,m-1,dd).getDay()]}) --:--`;
     }
-    return `${stamp} / ${l.minutes}分 / ${l.cat} / ${l.item}\n　→ ${l.memo}`;
+    const cnt=l.att!=null?` / ${l.ok}/${l.att}球(${Math.round((l.ok||0)/l.att*100)}%)`:"";
+    const sc=l.score!=null?` / スコア:${l.score}`:"";
+    return `${stamp} / ${l.minutes}分${cnt}${sc} / ${l.cat} / ${l.item}\n　→ ${l.memo}`;
   };
   const periodLabel=insightRange>0?`直近${insightRange}日`:"全期間";
   const totalMin=list.reduce((s,l)=>s+(l.minutes||0),0);
@@ -831,6 +1054,13 @@ function copyInsightsForAI(){
   const cur=$("ins-filter")?.value||"";
   const filterNote=cur?`（種目フィルタ: ${cur}）`:"";
   const body=list.slice().sort((a,b)=>a.date.localeCompare(b.date)||a.id-b.id).map(fmt).join("\n\n");
+  // 未消化の課題リスト（本人が「次回やる」と決めたもの）
+  const openTasks=tasks.filter(t=>!t.done);
+  const taskSection=openTasks.length?`
+【現在の未消化課題（本人が「次回やる」と決めたもの）】
+${openTasks.map(t=>`・${t.text}${t.item?`（${t.item}）`:""}`).join("\n")}
+これらへの取り組み方や優先順位も「次の一手」に反映してください。
+`:"";
 
   const prompt=`あなたはビリヤード（プール）の上級コーチであり、データを論理的に読み解く分析家です。
 以下は私が日々の練習で書き残している「気づきメモ」のログです。
@@ -890,7 +1120,10 @@ function copyInsightsForAI(){
 【補足】
 メモ冒頭の【絶好調 / 好調 / 普通 / 不調】は本人の主観的コンディション申告です。
 課題マップやパターン分析の参考にしてください。
-
+「7/10球(70%)」表記はその練習での成功数/試技数、「スコア:185」はボーラード
+（ボウリング形式の実力測定ゲーム、300点満点）のスコアです。
+定量データがあるものは、感想と数値の食い違い（できた気がするが数値は低い等）にも注目してください。
+${taskSection}
 【ログデータ】
 分析対象: ${periodLabel} ${filterNote}
 日付レンジ: ${dateRange}
