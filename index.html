@@ -207,7 +207,13 @@ select.form-input{appearance:none;-webkit-appearance:none;cursor:pointer;}
           </div>
           <div id="score-row" style="display:none;margin-top:12px;">
             <div class="card-label">🎳 ボーラードスコア（任意）</div>
-            <input type="number" class="form-input" id="score-input" placeholder="0〜300" min="0" max="300" style="margin-bottom:0;">
+            <div class="custom-row" style="margin-top:0;">
+              <input type="number" class="form-input" id="score-input" placeholder="0〜300" min="0" max="300" style="margin-bottom:0;">
+              <button class="mini-btn" onclick="blOpen()">📝 シート</button>
+            </div>
+          </div>
+          <div id="nine-row" style="display:none;margin-top:12px;">
+            <button class="add-btn" onclick="nnOpen()" style="background:var(--surface2);color:var(--text);border:1px solid var(--accent3);">🎯 ラックカウンターで数える</button>
           </div>
         </div>
         <div class="card">
@@ -385,6 +391,47 @@ select.form-input{appearance:none;-webkit-appearance:none;cursor:pointer;}
     </div>
     <button class="add-btn" onclick="runImport()">実行する</button>
     <button style="width:100%;padding:10px;background:transparent;border:none;color:var(--text3);font-size:13px;cursor:pointer;margin-top:6px;" onclick="closeImportModal()">キャンセル</button>
+  </div>
+</div>
+<div id="bl-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:210;align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto;">
+  <div style="background:var(--surface);border:1px solid var(--accent);border-radius:14px;padding:16px;max-width:420px;width:100%;margin-top:8px;">
+    <div class="section-row" style="margin-bottom:10px;">
+      <span class="card-label" style="margin-bottom:0;">🎳 ボーラード スコアシート</span>
+      <span class="badge" id="bl-total">0点</span>
+    </div>
+    <div id="bl-frames" style="display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-bottom:12px;"></div>
+    <div id="bl-hint" style="font-size:12px;color:var(--text2);margin-bottom:8px;text-align:center;font-weight:600;"></div>
+    <div id="bl-pad" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px;"></div>
+    <div style="display:flex;gap:6px;">
+      <button class="mini-btn" onclick="blUndo()" style="flex:1;">↩ 戻す</button>
+      <button class="mini-btn" onclick="blReset()" style="flex:1;">🗑 リセット</button>
+      <button class="mini-btn" onclick="blClose()" style="flex:1;">閉じる</button>
+    </div>
+    <button class="add-btn" id="bl-finish" onclick="blFinish()" style="margin-top:10px;" disabled>スコアを記録欄へ反映</button>
+    <div style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.5;">「閉じる」は途中保存（あとで再開できる）。反映したら時間を確認して「記録する」で保存してね。</div>
+  </div>
+</div>
+<div id="nine-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:210;align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto;">
+  <div style="background:var(--surface);border:1px solid var(--accent);border-radius:14px;padding:16px;max-width:420px;width:100%;margin-top:8px;">
+    <div class="section-row" style="margin-bottom:4px;">
+      <span class="card-label" style="margin-bottom:0;">🎯 ラックカウンター</span>
+      <span class="badge" id="nn-count">0ラック</span>
+    </div>
+    <div style="text-align:center;font-size:46px;font-family:'DM Mono',monospace;font-weight:700;margin:8px 0 2px;">
+      <span id="nn-w" style="color:var(--accent);">0</span><span style="color:var(--text3);font-size:24px;"> - </span><span id="nn-l" style="color:var(--accent2);">0</span>
+    </div>
+    <div style="display:flex;justify-content:center;gap:18px;font-size:11px;color:var(--text3);margin-bottom:4px;"><span>勝ち</span><span>負け</span></div>
+    <div id="nn-br" style="text-align:center;font-size:13px;color:var(--accent3);margin-bottom:14px;">⚡ マスワリ 0</div>
+    <button class="add-btn" onclick="nnTap('b')" style="margin-bottom:8px;background:linear-gradient(135deg,#e8b93e,#c99b2a);">⚡ マスワリで取り切った</button>
+    <button class="add-btn" onclick="nnTap('w')" style="margin-bottom:8px;">○ 取り切った（勝ち）</button>
+    <button class="add-btn" onclick="nnTap('l')" style="margin-bottom:12px;background:var(--surface2);color:var(--text);border:1px solid var(--accent2);">✕ 取られた（負け）</button>
+    <div style="display:flex;gap:6px;">
+      <button class="mini-btn" onclick="nnUndo()" style="flex:1;">↩ 戻す</button>
+      <button class="mini-btn" onclick="nnReset()" style="flex:1;">🗑 リセット</button>
+      <button class="mini-btn" onclick="nnClose()" style="flex:1;">閉じる</button>
+    </div>
+    <button class="add-btn" id="nn-finish" onclick="nnFinish()" style="margin-top:10px;" disabled>結果を成功カウントへ反映</button>
+    <div style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.5;">勝ち数/総ラック数が「🎯 成功カウント」に入るので、上達タブの成功率グラフ＝勝率推移になるよ。「閉じる」は途中保存。</div>
   </div>
 </div>
 <div id="toast"></div>
@@ -775,10 +822,176 @@ function cancelRoutine(){
   activeRoutine=null;$("routine-progress").style.display="none";$("routine-pick").value="";
 }
 
-// ---------- ボーラードスコア欄の表示切替 ----------
+// ---------- ボーラードスコア欄／9ボールカウンター欄の表示切替 ----------
 function updateScoreRow(){
   const it=items.find(i=>i.id===selItem);
-  $("score-row").style.display=(it&&it.name==="ボーラード")?"block":"none";
+  const name=it?it.name:"";
+  $("score-row").style.display=name==="ボーラード"?"block":"none";
+  $("nine-row").style.display=/9ボール|ナインボール|ゴースト/.test(name)?"block":"none";
+}
+
+// ---------- ボーラード スコアシート（ボウリング式採点） ----------
+const BL_KEY="poollog_bl_sheet";
+let blState=null;
+function blLoad(){try{const s=JSON.parse(localStorage.getItem(BL_KEY));if(s&&Array.isArray(s.throws))return s;}catch(e){}return null;}
+function blSave(){if(blState)localStorage.setItem(BL_KEY,JSON.stringify(blState));}
+function blClear(){blState=null;localStorage.removeItem(BL_KEY);}
+function blOpen(){
+  const saved=blLoad();
+  blState=saved||{throws:[],startMs:Date.now()};
+  if(saved&&saved.throws.length)toast("前回の続きから再開したよ");
+  blSave();
+  $("bl-modal").style.display="flex";
+  blRender();
+}
+function blClose(){blSave();$("bl-modal").style.display="none";}
+function blReset(){if(!confirm("スコアシートをリセットする？"))return;blState={throws:[],startMs:Date.now()};blSave();blRender();}
+function blUndo(){blState.throws.pop();blSave();blRender();}
+function blTap(n){blState.throws.push(n);blSave();blRender();}
+// ボウリング採点：フレームごとの表示記号と累計を計算
+function blCalc(th){
+  const fr=[];let i=0,run=0;
+  for(let f=0;f<10;f++){
+    if(f<9){
+      const a=th[i];
+      if(a==null){fr.push({d:[],cum:null});continue;}
+      if(a===10){
+        const b=th[i+1],c=th[i+2];
+        if(b!=null&&c!=null){run+=10+b+c;fr.push({d:["X"],cum:run});}else fr.push({d:["X"],cum:null});
+        i+=1;
+      }else{
+        const b=th[i+1];
+        if(b==null){fr.push({d:[String(a)],cum:null});i+=1;continue;}
+        if(a+b===10){
+          const c=th[i+2];
+          if(c!=null){run+=10+c;fr.push({d:[String(a),"/"],cum:run});}else fr.push({d:[String(a),"/"],cum:null});
+        }else{run+=a+b;fr.push({d:[String(a),String(b)],cum:run});}
+        i+=2;
+      }
+    }else{
+      const a=th[i],b=th[i+1],c=th[i+2];
+      const dd=[];
+      if(a!=null)dd.push(a===10?"X":String(a));
+      if(b!=null)dd.push(a!==10&&a+b===10?"/":(b===10?"X":String(b)));
+      if(c!=null)dd.push(c===10?"X":String(c));
+      let sc=null;
+      if(a!=null&&b!=null){
+        if(a===10||a+b===10){if(c!=null)sc=a+b+c;}
+        else sc=a+b;
+      }
+      if(sc!=null){run+=sc;fr.push({d:dd,cum:run});}else fr.push({d:dd,cum:null});
+    }
+  }
+  return {frames:fr,total:run,complete:fr.every(x=>x.cum!=null)};
+}
+// 次に入力すべきフレームと残り最大球数（ゲーム終了ならnull）
+function blNextInfo(th){
+  let i=0;
+  for(let f=0;f<9;f++){
+    const a=th[i];
+    if(a==null)return {frame:f,max:10};
+    if(a===10){i+=1;continue;}
+    const b=th[i+1];
+    if(b==null)return {frame:f,max:10-a};
+    i+=2;
+  }
+  const a=th[i],b=th[i+1],c=th[i+2];
+  if(a==null)return {frame:9,max:10};
+  if(b==null)return {frame:9,max:a===10?10:10-a};
+  if((a===10||a+b===10)&&c==null){
+    return {frame:9,max:a===10?(b===10?10:10-b):10};
+  }
+  return null;
+}
+function blRender(){
+  const th=blState.throws;
+  const c=blCalc(th);
+  const nx=blNextInfo(th);
+  $("bl-total").textContent=c.total+"点";
+  $("bl-frames").innerHTML=c.frames.map((f,idx)=>{
+    const cur=nx&&nx.frame===idx;
+    return `<div style="border:1px solid ${cur?"var(--accent)":"var(--border)"};border-radius:6px;padding:3px 2px;text-align:center;background:${cur?"var(--surface2)":"transparent"};">
+      <div style="font-size:9px;color:var(--text3);">${idx+1}</div>
+      <div style="font-size:12px;font-family:'DM Mono',monospace;height:16px;letter-spacing:1px;">${f.d.join(" ")||"&nbsp;"}</div>
+      <div style="font-size:12px;font-weight:700;font-family:'DM Mono',monospace;height:15px;">${f.cum!=null?f.cum:""}</div>
+    </div>`;
+  }).join("");
+  if(nx){
+    $("bl-hint").textContent=`第${nx.frame+1}フレーム：何球入った？（最大${nx.max}球）`;
+    let pad="";
+    for(let n=0;n<=10;n++){
+      const dis=n>nx.max;
+      pad+=`<button class="chip" ${dis?"disabled":""} onclick="blTap(${n})" style="${dis?"opacity:0.25;":""}">${n}</button>`;
+    }
+    $("bl-pad").innerHTML=pad;
+  }else{
+    $("bl-hint").textContent="ゲーム終了！🎉 下のボタンで反映してね";
+    $("bl-pad").innerHTML="";
+  }
+  $("bl-finish").disabled=!c.complete;
+}
+function blFinish(){
+  const c=blCalc(blState.throws);
+  if(!c.complete)return;
+  $("score-input").value=c.total;
+  const nota=c.frames.map(f=>f.d.join("")).join("|");
+  const memo=$("memo");
+  const line=`🎳${nota}＝${c.total}点`;
+  memo.value=memo.value?memo.value+"\n"+line:line;
+  // 経過時間から練習分を提案（タイマー未使用・時間未選択のときだけ）
+  if(!isTimerRunning()&&!selMin){
+    const mins=Math.max(1,Math.round((Date.now()-blState.startMs)/60000));
+    selMin=mins;$("custom-min").value=mins;renderMinChips();updateSaveBtn();
+  }
+  blClear();
+  $("bl-modal").style.display="none";
+  toast(`スコア${c.total}点を反映したよ。「記録する」で保存してね`);
+}
+
+// ---------- 9ボール ラックカウンター ----------
+const NN_KEY="poollog_nine_sheet";
+let nnState=null;
+function nnLoad(){try{const s=JSON.parse(localStorage.getItem(NN_KEY));if(s&&Array.isArray(s.hist))return s;}catch(e){}return null;}
+function nnSave(){if(nnState)localStorage.setItem(NN_KEY,JSON.stringify(nnState));}
+function nnClear(){nnState=null;localStorage.removeItem(NN_KEY);}
+function nnOpen(){
+  const saved=nnLoad();
+  nnState=saved||{hist:[],startMs:Date.now()};
+  if(saved&&saved.hist.length)toast("前回の続きから再開したよ");
+  nnSave();
+  $("nine-modal").style.display="flex";
+  nnRender();
+}
+function nnClose(){nnSave();$("nine-modal").style.display="none";}
+function nnReset(){if(!confirm("カウンターをリセットする？"))return;nnState={hist:[],startMs:Date.now()};nnSave();nnRender();}
+function nnTap(r){nnState.hist.push(r);nnSave();nnRender();}
+function nnUndo(){nnState.hist.pop();nnSave();nnRender();}
+function nnCalc(){
+  const h=nnState.hist;
+  return {w:h.filter(x=>x!=="l").length,l:h.filter(x=>x==="l").length,br:h.filter(x=>x==="b").length,total:h.length};
+}
+function nnRender(){
+  const c=nnCalc();
+  $("nn-w").textContent=c.w;
+  $("nn-l").textContent=c.l;
+  $("nn-br").textContent="⚡ マスワリ "+c.br;
+  $("nn-count").textContent=c.total+"ラック";
+  $("nn-finish").disabled=c.total===0;
+}
+function nnFinish(){
+  const c=nnCalc();if(!c.total)return;
+  $("cnt-ok").value=c.w;
+  $("cnt-att").value=c.total;
+  const memo=$("memo");
+  const line=`🎯ラック ${c.w}勝${c.l}敗${c.br?`（マスワリ${c.br}）`:""}`;
+  memo.value=memo.value?memo.value+"\n"+line:line;
+  if(!isTimerRunning()&&!selMin){
+    const mins=Math.max(1,Math.round((Date.now()-nnState.startMs)/60000));
+    selMin=mins;$("custom-min").value=mins;renderMinChips();updateSaveBtn();
+  }
+  nnClear();
+  $("nine-modal").style.display="none";
+  toast(`${c.w}勝${c.l}敗を成功カウントに反映したよ。「記録する」で保存してね`);
 }
 
 // ---------- 課題カード ----------
