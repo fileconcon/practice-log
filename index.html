@@ -388,7 +388,7 @@ select.form-input{appearance:none;-webkit-appearance:none;cursor:pointer;}
     <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px;">
       <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;line-height:1.4;">
         <input type="radio" name="import-mode" value="merge" checked style="margin-top:3px;">
-        <span style="font-size:13px;">🟢 <b>追加</b><br><span style="font-size:11px;color:var(--text3);">記録（ログ）だけ追加。カテゴリ・種目・ルーティンは既存を尊重。重複ログはスキップ。</span></span>
+        <span style="font-size:13px;">🟢 <b>追加</b><br><span style="font-size:11px;color:var(--text3);">記録と課題を追加。カテゴリ・種目・ルーティンは既存を尊重。重複はスキップ。</span></span>
       </label>
       <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;line-height:1.4;">
         <input type="radio" name="import-mode" value="replace" style="margin-top:3px;">
@@ -621,7 +621,9 @@ function renderExGrid(){
     const b=document.createElement("button");
     b.className="ex-btn"+(selItem===i.id?" selected":"");
     b.textContent=i.name;
-    b.onclick=()=>{if(isTimerRunning()){toast("計測中だよ。■終了してから切り替えてね");return;}selItem=i.id;markSessionStart();renderExGrid();$("record-panel").style.display="block";
+    b.onclick=()=>{if(isTimerRunning()){toast("計測中だよ。■終了してから切り替えてね");return;}
+      if(selItem!==i.id)resetRecordInputs(); // 別種目へ移るとき入力を持ち越さない
+      selItem=i.id;markSessionStart();renderExGrid();$("record-panel").style.display="block";
       const tipCard=$("tip-card");
       if(i.tip){$("tip-text").textContent=i.tip;tipCard.style.display="block";}else{tipCard.style.display="none";}
       renderPastMemos(i.name);updateScoreRow();
@@ -650,6 +652,30 @@ function updateSaveBtn(){
   const ok=selCat!==null&&selItem!==null&&selMin;
   btn.disabled=!ok;
   btn.textContent=ok?`記録する（${selMin}分）`:(selItem===null?"種目を選んでね":"時間を選んでね");
+}
+
+// 記録パネルの入力状態を初期化する。
+// 種目切替時にクリアし忘れると、成功カウントやメモが別種目へ持ち越されて
+// 「実際にやっていない練習結果」が記録されてしまうため必ず経由させる。
+function resetRecordInputs(){
+  abortVoice();
+  $("memo").value="";
+  $("cnt-ok").value="";
+  $("cnt-att").value="";
+  $("score-input").value="";
+  document.querySelectorAll(".cond-btn").forEach(b=>b.classList.remove("selected"));
+}
+
+// スコアシート等の「開始からの経過分」。壁時計を無検証で信じると
+// 日をまたいで再開したときに数千分になるので、日跨ぎ・上限超過は自動セットしない。
+const AUTO_MIN_CAP=240;
+function autoMinutesFrom(startMs){
+  if(!startMs||!Number.isFinite(startMs))return null;
+  const mins=Math.round((Date.now()-startMs)/60000);
+  if(mins<1)return 1;
+  const sameDay=new Date(startMs).toDateString()===new Date().toDateString();
+  if(!sameDay||mins>AUTO_MIN_CAP)return null;
+  return mins;
 }
 
 function pickCondition(label){
@@ -688,7 +714,7 @@ async function saveEntry(minutes){
   const {error}=await db.from(TABLE).insert({type:"log",date:todayStr(),data});
   if(error){toast("保存エラー😣");return false;}
   floatText(`+${minutes}分 🎱`);toast("記録したよ！👏");
-  $("memo").value="";$("cnt-ok").value="";$("cnt-att").value="";$("score-input").value="";
+  resetRecordInputs();
   await loadAll();
   if(activeRoutine)setTimeout(advanceRoutine,250);
   return true;
@@ -841,6 +867,7 @@ function startRoutine(){
 function gotoRoutineStep(pos){
   const itemId=activeRoutine.items[pos];
   const it=items.find(i=>i.id===itemId);
+  if(selItem!==it.id)resetRecordInputs(); // 次の種目へ入力を持ち越さない
   selCat=it.cat;selItem=it.id;
   renderCatTabs();
   $("record-panel").style.display="block";
@@ -982,8 +1009,8 @@ function blFinish(){
   memo.value=memo.value?memo.value+"\n"+line:line;
   // 経過時間から練習分を提案（タイマー未使用・時間未選択のときだけ）
   if(!isTimerRunning()&&!selMin){
-    const mins=Math.max(1,Math.round((Date.now()-blState.startMs)/60000));
-    selMin=mins;$("custom-min").value=mins;renderMinChips();updateSaveBtn();
+    const mins=autoMinutesFrom(blState.startMs);
+    if(mins){selMin=mins;$("custom-min").value=mins;renderMinChips();updateSaveBtn();}
   }
   blClear();
   $("bl-modal").style.display="none";
@@ -1028,8 +1055,8 @@ function nnFinish(){
   const line=`🎯ラック ${c.w}勝${c.l}敗${c.br?`（マスワリ${c.br}）`:""}`;
   memo.value=memo.value?memo.value+"\n"+line:line;
   if(!isTimerRunning()&&!selMin){
-    const mins=Math.max(1,Math.round((Date.now()-nnState.startMs)/60000));
-    selMin=mins;$("custom-min").value=mins;renderMinChips();updateSaveBtn();
+    const mins=autoMinutesFrom(nnState.startMs);
+    if(mins){selMin=mins;$("custom-min").value=mins;renderMinChips();updateSaveBtn();}
   }
   nnClear();
   $("nine-modal").style.display="none";
@@ -1397,6 +1424,16 @@ function copyText(txt){
 
 // ---------- データ管理（エクスポート/インポート） ----------
 let _pendingImport=null;
+// 追加モードで取り込む種別。新しい種別を足したらここに追加する
+// （ここに載せ忘れると、その種別は端末乗り換えで黙って消える）
+const MERGE_TYPES=["log","task"];
+// 重複判定キー。定量データまで含めないと、同日・同種目・同分数で
+// スコアだけ違う2ゲーム目が重複扱いで捨てられる
+function mergeKey(r){
+  const d=r.data||{};
+  if(r.type==="task")return `task::${r.date}::${d.text||""}`;
+  return `log::${r.date}::${d.cat||""}::${d.item||""}::${d.minutes||0}::${d.memo||""}::${d.att??""}::${d.ok??""}::${d.score??""}`;
+}
 function _exportFilenameStamp(){
   const d=new Date();
   const p=n=>String(n).padStart(2,"0");
@@ -1409,7 +1446,7 @@ async function exportBackup(){
   const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
   const url=URL.createObjectURL(blob);
   const a=document.createElement("a");
-  a.href=url;a.download=`practice-log-backup-online-${_exportFilenameStamp()}.json`;
+  a.href=url;a.download=`cue-note-backup-online-${_exportFilenameStamp()}.json`;
   document.body.appendChild(a);a.click();a.remove();
   setTimeout(()=>URL.revokeObjectURL(url),1000);
   toast(`エクスポートしたよ📥 ${data.length}件`);
@@ -1426,7 +1463,7 @@ async function onImportFileSelected(e){
     const cnt=t=>json.data.filter(r=>r.type===t).length;
     const src=esc(json.source||"-");
     const dt=esc((json.exported_at||"").slice(0,10));
-    $("import-info").innerHTML=`カテゴリ ${cnt("category")}件 / 種目 ${cnt("item")}件 / 記録 ${cnt("log")}件 / ルーティン ${cnt("routine")}件<br>出力元: ${src} / 出力日: ${dt}`;
+    $("import-info").innerHTML=`記録 ${cnt("log")}件 / 課題 ${cnt("task")}件<br>カテゴリ ${cnt("category")}件 / 種目 ${cnt("item")}件 / ルーティン ${cnt("routine")}件<br>出力元: ${src} / 出力日: ${dt}`;
     const r=document.querySelector("input[name='import-mode'][value='merge']");if(r)r.checked=true;
     $("import-modal").style.display="flex";
   }catch(err){
@@ -1461,18 +1498,20 @@ async function runImport(){
     toast(`置換完了：${recs.length}件読み込み`);
     return;
   }
-  // 追加モード：logのみ、重複スキップ
-  const {data:existing,error:fetchErr}=await db.from(TABLE).select("*").eq("type","log");
+  // 追加モード：log と task を追加、重複スキップ
+  // （カテゴリ・種目・ルーティンは既存を尊重して取り込まない）
+  const {data:existing,error:fetchErr}=await db.from(TABLE).select("*").in("type",MERGE_TYPES);
   if(fetchErr){toast("既存読み込みエラー: "+fetchErr.message);return;}
-  const key=l=>`${l.date}::${l.data?.cat||""}::${l.data?.item||""}::${l.data?.minutes||0}::${l.data?.memo||""}`;
-  const existingKeys=new Set((existing||[]).map(key));
-  const importLogs=_pendingImport.data.filter(r=>r.type==="log");
+  const existingKeys=new Set((existing||[]).map(mergeKey));
+  const incoming=_pendingImport.data.filter(r=>MERGE_TYPES.includes(r.type));
   const newRecs=[];
   let skipped=0;
-  for(const r of importLogs){
-    if(existingKeys.has(key(r))){skipped++;continue;}
+  for(const r of incoming){
+    const k=mergeKey(r);
+    if(existingKeys.has(k)){skipped++;continue;}
+    existingKeys.add(k); // 取り込むファイル自身に含まれる重複も弾く
     newRecs.push({
-      type:"log",
+      type:r.type,
       date:r.date,
       data:r.data||{},
       created_at:r.created_at||new Date().toISOString()
